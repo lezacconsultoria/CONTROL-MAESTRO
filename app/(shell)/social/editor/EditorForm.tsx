@@ -14,6 +14,7 @@ export type PostEditable = {
   hashtags: string;
   pilar: string;
   portada: string; // imagen de vista previa de posts importados
+  tapa: string; // tapa elegida para un reel
   programado_en: string; // ya en formato datetime-local
   estado: string;
   error: string;
@@ -39,6 +40,10 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
   const [nuevos, setNuevos] = useState<File[]>([]);
   const [errArchivos, setErrArchivos] = useState<string[]>([]);
   const [arrastrando, setArrastrando] = useState(false);
+  const [tapaNueva, setTapaNueva] = useState<File | null>(null);
+  const [errTapa, setErrTapa] = useState("");
+  const urlTapa = useMemo(() => (tapaNueva ? URL.createObjectURL(tapaNueva) : ""), [tapaNueva]);
+  useEffect(() => () => { if (urlTapa) URL.revokeObjectURL(urlTapa); }, [urlTapa]);
   const inputArchivos = useRef<HTMLInputElement>(null);
   const urlsNuevos = useMemo(() => nuevos.map((f) => URL.createObjectURL(f)), [nuevos]);
   useEffect(() => () => urlsNuevos.forEach((u) => URL.revokeObjectURL(u)), [urlsNuevos]);
@@ -249,6 +254,44 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
                 </div>
               )
             )}
+          </div>
+        )}
+
+        {!esLinkedin && tipoEf === "reel" && (
+          <div className="text-sm">
+            <span className="mb-1 block text-muted">Tapa del reel (opcional, imagen JPEG)</span>
+            <div className="flex items-center gap-3">
+              {(urlTapa || post.tapa) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={urlTapa || post.tapa} alt="Tapa" className="h-20 w-14 shrink-0 rounded object-cover" />
+              )}
+              <input
+                type="file"
+                name="tapa"
+                accept="image/jpeg"
+                disabled={bloqueado}
+                onChange={(e) => {
+                  const f = e.target.files?.[0] ?? null;
+                  if (f && f.type !== "image/jpeg") {
+                    setErrTapa("La tapa tiene que ser una imagen JPEG.");
+                    e.target.value = "";
+                    return setTapaNueva(null);
+                  }
+                  if (f && f.size > 8 * 1048576) {
+                    setErrTapa(`La tapa pesa ${mb(f.size)} MB y el máximo es 8 MB.`);
+                    e.target.value = "";
+                    return setTapaNueva(null);
+                  }
+                  setErrTapa("");
+                  setTapaNueva(f);
+                }}
+                className="text-xs text-muted file:mr-3 file:rounded-md file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm file:text-foreground"
+              />
+            </div>
+            {errTapa && <p className="mt-1 text-xs text-red-400">{errTapa}</p>}
+            <p className="mt-1 text-xs text-muted">
+              Si no subís una, Instagram usa el primer cuadro del video. Proporción recomendada 9:16.
+            </p>
           </div>
         )}
 

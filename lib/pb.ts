@@ -40,6 +40,8 @@ export type SocialPost = {
   hashtags: string;
   pilar: string;
   portada: string;
+  tapa: string;
+  tapa_ms: number;
   media: string[];
   estado: "idea" | "borrador" | "programado" | "publicando" | "publicado" | "error";
   programado_en: string;

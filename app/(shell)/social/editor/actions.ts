@@ -71,6 +71,12 @@ export async function guardarPost(_: Estado, form: FormData): Promise<Estado> {
   body.set("error", "");
   body.set("cuenta", cuenta.id);
   archivos.forEach((f) => body.append("media", f));
+  const tapa = form.get("tapa");
+  if (tipo === "reel" && !linkedin && tapa instanceof File && tapa.size > 0) {
+    if (tapa.type !== "image/jpeg") return { error: "La tapa tiene que ser una imagen JPEG." };
+    if (tapa.size > 8 * 1048576) return { error: "La tapa supera los 8 MB." };
+    body.set("tapa", tapa);
+  }
 
   try {
     const r = await (id
