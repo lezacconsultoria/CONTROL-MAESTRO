@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { guardarPost, eliminarPost, duplicarPost } from "./actions";
 import type { Cuenta } from "@/lib/pb";
 import Cargando from "@/components/Cargando";
@@ -20,6 +20,12 @@ export type PostEditable = {
   media: { nombre: string; url: string }[];
 };
 
+const PERMITIDOS = ["image/jpeg", "video/mp4", "video/quicktime"];
+const MAX_ARCHIVOS = 10;
+const MAX_MB = 50;
+const esVideoMime = (t: string) => t.startsWith("video/");
+const mb = (n: number) => (n / 1048576).toFixed(1);
+
 const campo =
   "w-full rounded-md border border-line bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent";
 
@@ -28,10 +34,56 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
   const [caption, setCaption] = useState(post.caption);
   const [hashtags, setHashtags] = useState(post.hashtags);
   const [cuentaId, setCuentaId] = useState(post.cuenta);
+  const [tipo, setTipo] = useState(post.tipo);
+  const [nuevos, setNuevos] = useState<File[]>([]);
+  const [errArchivos, setErrArchivos] = useState<string[]>([]);
+  const [arrastrando, setArrastrando] = useState(false);
+  const inputArchivos = useRef<HTMLInputElement>(null);
+  const urlsNuevos = useMemo(() => nuevos.map((f) => URL.createObjectURL(f)), [nuevos]);
+  useEffect(() => () => urlsNuevos.forEach((u) => URL.revokeObjectURL(u)), [urlsNuevos]);
+  // El input real siempre refleja la lista que se ve en pantalla.
+  useEffect(() => {
+    if (!inputArchivos.current) return;
+    const dt = new DataTransfer();
+    nuevos.forEach((f) => dt.items.add(f));
+    inputArchivos.current.files = dt.files;
+  }, [nuevos]);
   const esLinkedin = cuentas.find((c) => c.id === cuentaId)?.plataforma === "linkedin";
   const limite = esLinkedin ? 3000 : 2200;
   const total = (caption + (hashtags ? "\n\n" + hashtags : "")).length;
   const bloqueado = post.estado === "publicado" || post.estado === "publicando";
+
+  const unSoloArchivo = !esLinkedin && tipo !== "carrusel";
+  // Si el formato pasa a admitir un solo archivo, se conserva el último elegido.
+  const cambiarTipo = (t: string) => {
+    setTipo(t);
+    if (t !== "carrusel" && nuevos.length > 1) {
+      setNuevos(nuevos.slice(-1));
+      setErrArchivos(["Este formato admite un solo archivo: se conservó el último que elegiste."]);
+    }
+  };
+  const agregar = (lista: File[]) => {
+    const errores: string[] = [];
+    const validos = lista.filter((f) => {
+      if (!PERMITIDOS.includes(f.type)) {
+        errores.push(`"${f.name}" no se puede usar: solo imágenes JPEG y videos MP4/MOV.`);
+        return false;
+      }
+      if (f.size > MAX_MB * 1048576) {
+        errores.push(`"${f.name}" pesa ${mb(f.size)} MB y el máximo es ${MAX_MB} MB.`);
+        return false;
+      }
+      return true;
+    });
+    let siguiente = unSoloArchivo ? validos.slice(-1) : [...nuevos, ...validos];
+    if (siguiente.length > MAX_ARCHIVOS) {
+      errores.push(`Máximo ${MAX_ARCHIVOS} archivos por post.`);
+      siguiente = siguiente.slice(0, MAX_ARCHIVOS);
+    }
+    setErrArchivos(errores);
+    setNuevos(siguiente);
+  };
+  const quitar = (i: number) => setNuevos(nuevos.filter((_, k) => k !== i));
 
   return (
     <div className="grid gap-8 xl:grid-cols-[1fr_340px]">
@@ -67,7 +119,7 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
 
         <label className="block text-sm">
           <span className="mb-1 block text-muted">Formato</span>
-          <select name="tipo" defaultValue={esLinkedin ? "texto" : post.tipo} key={esLinkedin ? "li" : "ig"} disabled={bloqueado} className={campo}>
+          <select name="tipo" value={esLinkedin ? "texto" : tipo} onChange={(e) => cambiarTipo(e.target.value)} disabled={bloqueado} className={campo}>
             {esLinkedin ? (
               <option value="texto">Texto / enlace</option>
             ) : (
@@ -100,13 +152,90 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
             placeholder="Ej: Brújula Comercial, casos de éxito" className={campo} />
         </label>
 
-        <label className="block text-sm">
-          <span className="mb-1 block text-muted">
-            Archivos (imágenes JPEG, videos MP4/MOV){post.media.length > 0 && " — subir nuevos reemplaza los actuales"}
-          </span>
-          <input type="file" name="media" multiple disabled={bloqueado}
-            accept="image/jpeg,video/mp4,video/quicktime" className={campo} />
-        </label>
+        {!esLinkedin && (
+          <div className="text-sm">
+            <span className="mb-1 block text-muted">
+              Archivos{unSoloArchivo ? " (1 archivo)" : ` (hasta ${MAX_ARCHIVOS})`}
+            </span>
+            <input
+              ref={inputArchivos}
+              type="file"
+              name="media"
+              multiple={!unSoloArchivo}
+              disabled={bloqueado}
+              accept="image/jpeg,video/mp4,video/quicktime"
+              onChange={(e) => agregar(Array.from(e.target.files ?? []))}
+              className="sr-only"
+              id="archivos"
+              tabIndex={-1}
+            />
+            {!bloqueado && (
+              <label
+                htmlFor="archivos"
+                onDragOver={(e) => { e.preventDefault(); setArrastrando(true); }}
+                onDragLeave={() => setArrastrando(false)}
+                onDrop={(e) => { e.preventDefault(); setArrastrando(false); agregar(Array.from(e.dataTransfer.files)); }}
+                className={`flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed px-4 py-7 text-center transition ${
+                  arrastrando ? "border-accent bg-accent/10" : "border-line bg-surface-2 hover:border-accent"
+                }`}
+              >
+                <span className="text-2xl">⬆️</span>
+                <span className="font-semibold">Hacé clic o arrastrá los archivos acá</span>
+                <span className="text-xs text-muted">Imágenes JPEG · Videos MP4 o MOV · hasta {MAX_MB} MB cada uno</span>
+              </label>
+            )}
+
+            {errArchivos.length > 0 && (
+              <ul className="mt-2 space-y-1 text-xs text-red-400">
+                {errArchivos.map((m) => <li key={m}>{m}</li>)}
+              </ul>
+            )}
+
+            {nuevos.length > 0 ? (
+              <ul className="mt-3 space-y-2">
+                {nuevos.map((f, i) => (
+                  <li key={`${f.name}-${i}`} className="flex items-center gap-3 rounded-md border border-line bg-surface p-2">
+                    <span className="w-5 text-center text-xs text-muted">{i + 1}</span>
+                    {esVideoMime(f.type) ? (
+                      <video src={urlsNuevos[i]} muted playsInline className="h-12 w-12 shrink-0 rounded object-cover" />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={urlsNuevos[i]} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">{f.name}</p>
+                      <p className="text-xs text-muted">
+                        {esVideoMime(f.type) ? "Video" : "Imagen"} · {mb(f.size)} MB
+                      </p>
+                    </div>
+                    <button type="button" onClick={() => quitar(i)} aria-label={`Quitar ${f.name}`}
+                      className="rounded px-2 py-1 text-sm text-muted hover:bg-surface-2 hover:text-red-400">
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              post.media.length > 0 && (
+                <div className="mt-3">
+                  <p className="mb-2 text-xs text-muted">
+                    Archivos actuales{!bloqueado && " — si subís nuevos, reemplazan a estos"}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {post.media.map((m) =>
+                      /\.(mp4|mov)$/i.test(m.nombre) ? (
+                        <video key={m.nombre} src={m.url} muted playsInline className="h-14 w-14 rounded object-cover" />
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={m.nombre} src={m.url} alt="" className="h-14 w-14 rounded object-cover" />
+                      ),
+                    )}
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        )}
 
         <label className="block text-sm">
           <span className="mb-1 block text-muted">Fecha y hora de publicación (Argentina)</span>
@@ -139,7 +268,14 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
             <span className="h-7 w-7 rounded-full bg-accent" /> {cuentas.find((c) => c.id === cuentaId)?.handle}
           </div>
           <div className="aspect-square overflow-hidden rounded-md bg-surface-2">
-            {/\.(mp4|mov)$/i.test(post.media[0]?.nombre ?? "") ? (
+            {nuevos[0] ? (
+              esVideoMime(nuevos[0].type) ? (
+                <video key={urlsNuevos[0]} src={urlsNuevos[0]} controls muted playsInline className="h-full w-full object-cover" />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={urlsNuevos[0]} alt="" className="h-full w-full object-cover" />
+              )
+            ) : /\.(mp4|mov)$/i.test(post.media[0]?.nombre ?? "") ? (
               <video src={post.media[0].url} controls muted playsInline className="h-full w-full object-cover" />
             ) : (
               (post.media[0]?.url || post.portada) && (
