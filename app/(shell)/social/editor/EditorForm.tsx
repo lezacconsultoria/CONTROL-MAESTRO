@@ -21,7 +21,7 @@ export type PostEditable = {
 const campo =
   "w-full rounded-md border border-line bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent";
 
-export default function EditorForm({ post, cuentas }: { post: PostEditable; cuentas: Cuenta[] }) {
+export default function EditorForm({ post, cuentas, aviso }: { post: PostEditable; cuentas: Cuenta[]; aviso?: string }) {
   const [res, action, pending] = useActionState(guardarPost, { error: null });
   const [caption, setCaption] = useState(post.caption);
   const [hashtags, setHashtags] = useState(post.hashtags);
@@ -37,6 +37,9 @@ export default function EditorForm({ post, cuentas }: { post: PostEditable; cuen
         <input type="hidden" name="id" value={post.id} />
         <input type="hidden" name="media_previos" value={post.media.length} />
 
+        {aviso && (
+          <p className="rounded-md border border-[#f5c842]/40 bg-[#f5c842]/10 p-3 text-sm text-[#f5c842]">{aviso}</p>
+        )}
         {post.estado === "error" && post.error && (
           <p className="rounded-md border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
             Falló la publicación: {post.error}
@@ -131,9 +134,13 @@ export default function EditorForm({ post, cuentas }: { post: PostEditable; cuen
             <span className="h-7 w-7 rounded-full bg-accent" /> {cuentas.find((c) => c.id === cuentaId)?.handle}
           </div>
           <div className="aspect-square overflow-hidden rounded-md bg-surface-2">
-            {(post.media[0]?.url || post.portada) && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={post.media[0]?.url || post.portada} alt="" className="h-full w-full object-cover" />
+            {/\.(mp4|mov)$/i.test(post.media[0]?.nombre ?? "") ? (
+              <video src={post.media[0].url} controls muted playsInline className="h-full w-full object-cover" />
+            ) : (
+              (post.media[0]?.url || post.portada) && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={post.media[0]?.url || post.portada} alt="" className="h-full w-full object-cover" />
+              )
             )}
           </div>
           <p className="mt-2 line-clamp-6 whitespace-pre-line text-xs">

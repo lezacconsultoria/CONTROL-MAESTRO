@@ -74,25 +74,70 @@ export async function guardarPost(_: Estado, form: FormData): Promise<Estado> {
   redirect("/social/calendario");
 }
 
+// Archivos de un post importado: n8n pregunta a Instagram y devuelve las direcciones;
+// la app los descarga y los guarda todos juntos en el borrador.
+async function archivosDeInstagram(externo: string): Promise<{ archivos: { blob: Blob; nombre: string }[]; aviso?: string }> {
+  try {
+    const r = await fetch(process.env.N8N_MEDIA_URL!, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Webhook-Secret": process.env.N8N_WEBHOOK_SECRET! },
+      body: JSON.stringify({ externo }),
+      signal: AbortSignal.timeout(30000),
+    });
+    const j = (await r.json()) as { ok: boolean; urls?: string[]; error?: string };
+    if (!j.ok || !j.urls?.length) return { archivos: [], aviso: j.error ?? "Instagram no entregó el archivo." };
+    const archivos = [];
+    for (const url of j.urls) {
+      const f = await fetch(url, { signal: AbortSignal.timeout(90000) });
+      if (!f.ok) throw new Error(`descarga ${f.status}`);
+      const nombre = new URL(url).pathname.split("/").pop() || "archivo";
+      archivos.push({ blob: await f.blob(), nombre });
+    }
+    return { archivos };
+  } catch {
+    return { archivos: [], aviso: "No se pudo traer el archivo de Instagram. Subilo de nuevo a mano." };
+  }
+}
+
 // Reutilizar: clona un post como borrador (copia texto, cuenta y archivos) y abre el editor.
 export async function duplicarPost(form: FormData) {
   const origen = String(form.get("id"));
   const p = await pb<SocialPost>(`collections/social_posts/records/${encodeURIComponent(origen)}`);
-  const body = new FormData();
-  body.set("tipo", p.tipo);
-  body.set("titulo", p.titulo);
-  body.set("caption", p.caption);
-  body.set("hashtags", p.hashtags);
-  body.set("pilar", p.pilar ?? "");
-  body.set("cuenta", p.cuenta);
-  body.set("estado", "borrador");
-  body.set("origen", p.id);
-  for (const nombre of p.media ?? []) {
-    const r = await fetch(`${PB_URL}/api/files/social_posts/${p.id}/${nombre}`);
-    if (r.ok) body.append("media", await r.blob(), nombre);
+  const base = () => {
+    const body = new FormData();
+    body.set("tipo", p.tipo);
+    body.set("titulo", p.titulo);
+    body.set("caption", p.caption);
+    body.set("hashtags", p.hashtags);
+    body.set("pilar", p.pilar ?? "");
+    body.set("cuenta", p.cuenta);
+    body.set("estado", "borrador");
+    body.set("origen", p.id);
+    return body;
+  };
+
+  let archivos: { blob: Blob; nombre: string }[] = [];
+  let aviso: string | undefined;
+  if (p.media?.length) {
+    for (const nombre of p.media) {
+      const r = await fetch(`${PB_URL}/api/files/social_posts/${p.id}/${nombre}`);
+      if (r.ok) archivos.push({ blob: await r.blob(), nombre });
+    }
+  } else if (p.externo_id) {
+    ({ archivos, aviso } = await archivosDeInstagram(p.externo_id));
   }
-  const nuevo = await pbWrite("POST", "collections/social_posts/records", body);
-  redirect(`/social/editor?id=${nuevo.id}`);
+
+  const conArchivos = base();
+  archivos.forEach((a) => conArchivos.append("media", a.blob, a.nombre));
+  let nuevo;
+  try {
+    nuevo = await pbWrite("POST", "collections/social_posts/records", conArchivos);
+  } catch {
+    // Si PocketBase rechaza algún archivo, el borrador se crea igual, sin archivos.
+    nuevo = await pbWrite("POST", "collections/social_posts/records", base());
+    aviso = "El archivo de Instagram no se pudo guardar. Subilo de nuevo a mano.";
+  }
+  redirect(`/social/editor?id=${nuevo.id}${aviso ? `&aviso=${encodeURIComponent(aviso)}` : ""}`);
 }
 
 export async function eliminarPost(form: FormData) {

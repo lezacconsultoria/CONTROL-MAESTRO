@@ -5,9 +5,9 @@ import EditorForm, { type PostEditable } from "./EditorForm";
 export default async function Editor({
   searchParams,
 }: {
-  searchParams: Promise<{ id?: string; fecha?: string }>;
+  searchParams: Promise<{ id?: string; fecha?: string; aviso?: string }>;
 }) {
-  const { id, fecha } = await searchParams;
+  const { id, fecha, aviso } = await searchParams;
   const cuentas = (await pb<List<Cuenta>>("collections/social_cuentas/records?perPage=50")).items;
   let p: PostEditable = {
     id: "",
@@ -44,7 +44,7 @@ export default async function Editor({
   return (
     <div>
       <h1 className="mb-6 font-display text-2xl font-bold">{id ? "Editar post" : "Nuevo post"}</h1>
-      <EditorForm key={p.id || "nuevo"} post={p} cuentas={cuentas} />
+      <EditorForm key={p.id || "nuevo"} post={p} cuentas={cuentas} aviso={aviso} />
     </div>
   );
 }
