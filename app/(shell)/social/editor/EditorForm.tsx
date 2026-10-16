@@ -3,6 +3,8 @@
 import { useActionState, useState } from "react";
 import { guardarPost, eliminarPost, duplicarPost } from "./actions";
 import type { Cuenta } from "@/lib/pb";
+import Cargando from "@/components/Cargando";
+import BotonReutilizar from "@/components/BotonReutilizar";
 
 export type PostEditable = {
   id: string;
@@ -113,6 +115,9 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
         </label>
 
         {res.error && <p className="text-sm text-red-400">{res.error}</p>}
+        {pending && (
+          <Cargando texto="Guardando el post…" detalle="Subiendo los archivos y avisando al publicador." />
+        )}
 
         {!bloqueado && (
           <div className="flex gap-3">
@@ -150,9 +155,10 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
         {post.id && (
           <form action={duplicarPost}>
             <input type="hidden" name="id" value={post.id} />
-            <button className="w-full rounded-md bg-surface-2 px-4 py-2 text-sm font-semibold hover:text-accent">
-              Duplicar como borrador
-            </button>
+            <BotonReutilizar
+              texto="Duplicar como borrador"
+              className="w-full rounded-md bg-surface-2 px-4 py-2 text-sm font-semibold hover:text-accent"
+            />
           </form>
         )}
         {post.id && !bloqueado && (

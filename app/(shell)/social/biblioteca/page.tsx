@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PB_URL, pb, type List, type SocialPost, type IgPost } from "@/lib/pb";
 import { duplicarPost } from "../editor/actions";
+import BotonReutilizar from "@/components/BotonReutilizar";
 
 const fmt = new Intl.NumberFormat("es-AR");
 const fecha = (s: string) => (s ? new Date(s).toLocaleDateString("es-AR") : "—");
@@ -74,9 +75,7 @@ export default async function Biblioteca({
           const reutilizar = (
             <form action={duplicarPost}>
               <input type="hidden" name="id" value={p.id} />
-              <button className="rounded-md bg-surface-2 px-2.5 py-1 text-[11px] font-semibold hover:text-accent">
-                Reutilizar
-              </button>
+              <BotonReutilizar className="rounded-md bg-surface-2 px-2.5 py-1 text-[11px] font-semibold hover:text-accent" />
             </form>
           );
 
