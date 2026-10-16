@@ -33,10 +33,17 @@ export async function guardarPost(_: Estado, form: FormData): Promise<Estado> {
   const maxCaption = linkedin ? 3000 : 2200;
   if ((caption + " " + hashtags).trim().length > maxCaption) return { error: `El texto supera los ${maxCaption} caracteres.` };
   if (!linkedin && hashtags.split(/\s+/).filter((h) => h.startsWith("#")).length > 30) return { error: "Máximo 30 hashtags." };
-  if (linkedin && tipo !== "texto" && tipo !== "imagen") return { error: "LinkedIn admite posts de texto o con una imagen." };
-  if (linkedin && tipo === "texto" && archivos.length) return { error: "Un post de texto no lleva archivos: cambiá el formato a Imagen." };
-  if (linkedin && archivos.some((f) => !["image/jpeg", "image/png"].includes(f.type))) return { error: "LinkedIn admite imágenes JPEG o PNG." };
-  if (linkedin && nMedia > 1) return { error: "Por ahora LinkedIn admite una sola imagen por post." };
+  const mimesLi: Record<string, string[]> = {
+    imagen: ["image/jpeg", "image/png"],
+    video: ["video/mp4"],
+    documento: ["application/pdf"],
+  };
+  if (linkedin && tipo !== "texto" && !mimesLi[tipo]) return { error: "LinkedIn admite texto, imagen, video o documento PDF." };
+  if (linkedin && tipo === "texto" && archivos.length) return { error: "Un post de texto no lleva archivos: cambiá el formato." };
+  if (linkedin && tipo !== "texto" && archivos.some((f) => !mimesLi[tipo].includes(f.type))) {
+    return { error: `Para este formato LinkedIn admite: ${tipo === "video" ? "video MP4" : tipo === "documento" ? "PDF" : "imagen JPEG o PNG"}.` };
+  }
+  if (linkedin && nMedia > 1) return { error: "Por ahora LinkedIn admite un solo archivo por post." };
   if (linkedin && !caption) return { error: "Escribí el texto del post." };
 
   if (tipo === "imagen" || tipo === "carrusel") {
@@ -48,9 +55,9 @@ export async function guardarPost(_: Estado, form: FormData): Promise<Estado> {
   if (accion === "programar") {
     if (!cuando) return { error: "Elegí fecha y hora para programar." };
     if (new Date(desdeInputLocal(cuando)) < new Date()) return { error: "La fecha de publicación ya pasó." };
-    if ((!linkedin || tipo === "imagen") && nMedia === 0) return { error: "Subí al menos un archivo para programar." };
+    if ((!linkedin || tipo !== "texto") && nMedia === 0) return { error: "Subí al menos un archivo para programar." };
     if (tipo === "carrusel" && (nMedia < 2 || nMedia > 10)) return { error: "Un carrusel necesita entre 2 y 10 archivos." };
-    if (tipo !== "carrusel" && tipo !== "texto" && nMedia > 1) return { error: "Este formato admite un solo archivo." };
+    if (tipo !== "carrusel" && nMedia > 1) return { error: "Este formato admite un solo archivo." };
   }
 
   const body = new FormData();

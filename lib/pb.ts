@@ -34,7 +34,7 @@ export type SocialPost = {
   id: string;
   expand?: { cuenta?: Cuenta };
   cuenta: string;
-  tipo: "imagen" | "carrusel" | "reel" | "texto";
+  tipo: "imagen" | "carrusel" | "reel" | "texto" | "video" | "documento";
   titulo: string;
   caption: string;
   hashtags: string;

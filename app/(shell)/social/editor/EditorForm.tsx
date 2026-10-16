@@ -24,6 +24,7 @@ const PERMITIDOS = ["image/jpeg", "video/mp4", "video/quicktime"];
 const MAX_ARCHIVOS = 10;
 const MAX_MB = 50;
 const esVideoMime = (t: string) => t.startsWith("video/");
+const esPdfMime = (t: string) => t === "application/pdf";
 const mb = (n: number) => (n / 1048576).toFixed(1);
 
 const campo =
@@ -53,8 +54,11 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
   const total = (caption + (hashtags ? "\n\n" + hashtags : "")).length;
   const bloqueado = post.estado === "publicado" || post.estado === "publicando";
 
-  const tipoEf = esLinkedin ? (tipo === "imagen" ? "imagen" : "texto") : tipo;
-  const conArchivos = !esLinkedin || tipoEf === "imagen";
+  const tipoEf = esLinkedin ? (["imagen", "video", "documento"].includes(tipo) ? tipo : "texto") : tipo;
+  const conArchivos = !esLinkedin || tipoEf !== "texto";
+  // Tipos de archivo que acepta cada formato de LinkedIn.
+  const mimesLi = tipoEf === "video" ? ["video/mp4"] : tipoEf === "documento" ? ["application/pdf"] : ["image/jpeg", "image/png"];
+  const textoMimesLi = tipoEf === "video" ? "Video MP4" : tipoEf === "documento" ? "PDF" : "Imagen JPEG o PNG";
   const unSoloArchivo = esLinkedin || tipo !== "carrusel";
   // Si el formato pasa a admitir un solo archivo, se conserva el último elegido.
   const cambiarTipo = (t: string) => {
@@ -67,8 +71,8 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
   const agregar = (lista: File[]) => {
     const errores: string[] = [];
     const validos = lista.filter((f) => {
-      if (esLinkedin ? !["image/jpeg", "image/png"].includes(f.type) : !PERMITIDOS.includes(f.type)) {
-        errores.push(`"${f.name}" no se puede usar: ${esLinkedin ? "LinkedIn admite imágenes JPEG o PNG." : "solo imágenes JPEG y videos MP4/MOV."}`);
+      if (esLinkedin ? !mimesLi.includes(f.type) : !PERMITIDOS.includes(f.type)) {
+        errores.push(`"${f.name}" no se puede usar: ${esLinkedin ? `este formato admite ${textoMimesLi}.` : "solo imágenes JPEG y videos MP4/MOV."}`);
         return false;
       }
       if (f.size > MAX_MB * 1048576) {
@@ -126,6 +130,8 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
               <>
                 <option value="texto">Texto / enlace</option>
                 <option value="imagen">Imagen</option>
+                <option value="video">Video</option>
+                <option value="documento">Documento PDF</option>
               </>
             ) : (
               <>
@@ -168,7 +174,7 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
               name="media"
               multiple={!unSoloArchivo}
               disabled={bloqueado}
-              accept={esLinkedin ? "image/jpeg,image/png" : "image/jpeg,video/mp4,video/quicktime"}
+              accept={esLinkedin ? mimesLi.join(",") : "image/jpeg,video/mp4,video/quicktime"}
               onChange={(e) => agregar(Array.from(e.target.files ?? []))}
               className="sr-only"
               id="archivos"
@@ -186,7 +192,7 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
               >
                 <span className="text-2xl">⬆️</span>
                 <span className="font-semibold">Hacé clic o arrastrá los archivos acá</span>
-                <span className="text-xs text-muted">{esLinkedin ? "Imagen JPEG o PNG" : "Imágenes JPEG · Videos MP4 o MOV"} · hasta {MAX_MB} MB cada uno</span>
+                <span className="text-xs text-muted">{esLinkedin ? textoMimesLi : "Imágenes JPEG · Videos MP4 o MOV"} · hasta {MAX_MB} MB cada uno</span>
               </label>
             )}
 
@@ -201,7 +207,9 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
                 {nuevos.map((f, i) => (
                   <li key={`${f.name}-${i}`} className="flex items-center gap-3 rounded-md border border-line bg-surface p-2">
                     <span className="w-5 text-center text-xs text-muted">{i + 1}</span>
-                    {esVideoMime(f.type) ? (
+                    {esPdfMime(f.type) ? (
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-surface-2 text-xs font-bold">PDF</span>
+                    ) : esVideoMime(f.type) ? (
                       <video src={urlsNuevos[i]} muted playsInline className="h-12 w-12 shrink-0 rounded object-cover" />
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -210,7 +218,7 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm">{f.name}</p>
                       <p className="text-xs text-muted">
-                        {esVideoMime(f.type) ? "Video" : "Imagen"} · {mb(f.size)} MB
+                        {esPdfMime(f.type) ? "Documento" : esVideoMime(f.type) ? "Video" : "Imagen"} · {mb(f.size)} MB
                       </p>
                     </div>
                     <button type="button" onClick={() => quitar(i)} aria-label={`Quitar ${f.name}`}
@@ -228,7 +236,9 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {post.media.map((m) =>
-                      /\.(mp4|mov)$/i.test(m.nombre) ? (
+                      /\.pdf$/i.test(m.nombre) ? (
+                        <span key={m.nombre} className="flex h-14 w-14 items-center justify-center rounded bg-surface-2 text-xs font-bold">PDF</span>
+                      ) : /\.(mp4|mov)$/i.test(m.nombre) ? (
                         <video key={m.nombre} src={m.url} muted playsInline className="h-14 w-14 rounded object-cover" />
                       ) : (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -274,12 +284,16 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
           </div>
           <div className="aspect-square overflow-hidden rounded-md bg-surface-2">
             {nuevos[0] ? (
-              esVideoMime(nuevos[0].type) ? (
+              esPdfMime(nuevos[0].type) ? (
+                <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-muted">📄 {nuevos[0].name}</div>
+              ) : esVideoMime(nuevos[0].type) ? (
                 <video key={urlsNuevos[0]} src={urlsNuevos[0]} controls muted playsInline className="h-full w-full object-cover" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={urlsNuevos[0]} alt="" className="h-full w-full object-cover" />
               )
+            ) : /\.pdf$/i.test(post.media[0]?.nombre ?? "") ? (
+              <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-muted">📄 {post.media[0].nombre}</div>
             ) : /\.(mp4|mov)$/i.test(post.media[0]?.nombre ?? "") ? (
               <video src={post.media[0].url} controls muted playsInline className="h-full w-full object-cover" />
             ) : (
