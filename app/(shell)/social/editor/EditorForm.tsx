@@ -42,6 +42,8 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
   const [arrastrando, setArrastrando] = useState(false);
   const [tapaNueva, setTapaNueva] = useState<File | null>(null);
   const [errTapa, setErrTapa] = useState("");
+  const [arrastraTapa, setArrastraTapa] = useState(false);
+  const inputTapa = useRef<HTMLInputElement>(null);
   const urlTapa = useMemo(() => (tapaNueva ? URL.createObjectURL(tapaNueva) : ""), [tapaNueva]);
   useEffect(() => () => { if (urlTapa) URL.revokeObjectURL(urlTapa); }, [urlTapa]);
   const inputArchivos = useRef<HTMLInputElement>(null);
@@ -93,6 +95,20 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
     }
     setErrArchivos(errores);
     setNuevos(siguiente);
+  };
+  // El input real siempre refleja la tapa que se ve en pantalla.
+  const elegirTapa = (f: File | null) => {
+    let error = "";
+    if (f && f.type !== "image/jpeg") error = "La tapa tiene que ser una imagen JPEG.";
+    else if (f && f.size > 8 * 1048576) error = `La tapa pesa ${mb(f.size)} MB y el máximo es 8 MB.`;
+    const ok = error ? null : f;
+    if (inputTapa.current) {
+      const dt = new DataTransfer();
+      if (ok) dt.items.add(ok);
+      inputTapa.current.files = dt.files;
+    }
+    setErrTapa(error);
+    setTapaNueva(ok);
   };
   const quitar = (i: number) => setNuevos(nuevos.filter((_, k) => k !== i));
 
@@ -259,39 +275,64 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
 
         {!esLinkedin && tipoEf === "reel" && (
           <div className="text-sm">
-            <span className="mb-1 block text-muted">Tapa del reel (opcional, imagen JPEG)</span>
-            <div className="flex items-center gap-3">
-              {(urlTapa || post.tapa) && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={urlTapa || post.tapa} alt="Tapa" className="h-20 w-14 shrink-0 rounded object-cover" />
-              )}
-              <input
-                type="file"
-                name="tapa"
-                accept="image/jpeg"
-                disabled={bloqueado}
-                onChange={(e) => {
-                  const f = e.target.files?.[0] ?? null;
-                  if (f && f.type !== "image/jpeg") {
-                    setErrTapa("La tapa tiene que ser una imagen JPEG.");
-                    e.target.value = "";
-                    return setTapaNueva(null);
-                  }
-                  if (f && f.size > 8 * 1048576) {
-                    setErrTapa(`La tapa pesa ${mb(f.size)} MB y el máximo es 8 MB.`);
-                    e.target.value = "";
-                    return setTapaNueva(null);
-                  }
-                  setErrTapa("");
-                  setTapaNueva(f);
-                }}
-                className="text-xs text-muted file:mr-3 file:rounded-md file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm file:text-foreground"
-              />
-            </div>
-            {errTapa && <p className="mt-1 text-xs text-red-400">{errTapa}</p>}
-            <p className="mt-1 text-xs text-muted">
-              Si no subís una, Instagram usa el primer cuadro del video. Proporción recomendada 9:16.
-            </p>
+            <span className="mb-1 block text-muted">Tapa del reel (opcional)</span>
+            <input
+              ref={inputTapa}
+              id="tapa"
+              type="file"
+              name="tapa"
+              accept="image/jpeg"
+              disabled={bloqueado}
+              onChange={(e) => elegirTapa(e.target.files?.[0] ?? null)}
+              className="sr-only"
+              tabIndex={-1}
+            />
+            {urlTapa || post.tapa ? (
+              <div className="flex items-center gap-4 rounded-lg border border-line bg-surface p-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={urlTapa || post.tapa} alt="Tapa del reel" className="aspect-[9/16] h-28 shrink-0 rounded-md object-cover" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{tapaNueva ? tapaNueva.name : "Tapa actual"}</p>
+                  <p className="text-xs text-muted">
+                    {tapaNueva ? `Imagen JPEG · ${mb(tapaNueva.size)} MB` : "Guardada en este post"}
+                  </p>
+                  {!bloqueado && (
+                    <div className="mt-3 flex gap-2">
+                      <label htmlFor="tapa" className="cursor-pointer rounded-md bg-surface-2 px-3 py-1.5 text-xs font-semibold hover:text-accent">
+                        Cambiar
+                      </label>
+                      {tapaNueva && (
+                        <button type="button" onClick={() => elegirTapa(null)}
+                          className="rounded-md px-3 py-1.5 text-xs text-muted hover:bg-surface-2 hover:text-red-400">
+                          Quitar
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              !bloqueado && (
+                <label
+                  htmlFor="tapa"
+                  onDragOver={(e) => { e.preventDefault(); setArrastraTapa(true); }}
+                  onDragLeave={() => setArrastraTapa(false)}
+                  onDrop={(e) => { e.preventDefault(); setArrastraTapa(false); elegirTapa(e.dataTransfer.files[0] ?? null); }}
+                  className={`flex cursor-pointer items-center gap-4 rounded-lg border-2 border-dashed px-4 py-4 transition ${
+                    arrastraTapa ? "border-accent bg-accent/10" : "border-line bg-surface-2 hover:border-accent"
+                  }`}
+                >
+                  <span className="flex aspect-[9/16] h-16 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-xl">🖼️</span>
+                  <span>
+                    <span className="block font-semibold">Elegí una imagen de tapa</span>
+                    <span className="block text-xs text-muted">
+                      Hacé clic o arrastrala acá · JPEG hasta 8 MB · proporción 9:16. Si no subís una, Instagram usa el primer cuadro del video.
+                    </span>
+                  </span>
+                </label>
+              )
+            )}
+            {errTapa && <p className="mt-2 text-xs text-red-400">{errTapa}</p>}
           </div>
         )}
 
