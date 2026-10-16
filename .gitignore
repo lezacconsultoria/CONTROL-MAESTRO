@@ -43,3 +43,7 @@ next-env.d.ts
 # local
 dev.log
 *.mp4
+
+# Exportaciones de analiticas descargadas de LinkedIn (datos privados)
+/AnalisisConjunto*.xlsx
+/lezac-consultoria_content*.xls

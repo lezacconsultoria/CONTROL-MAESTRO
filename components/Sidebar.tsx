@@ -16,6 +16,7 @@ const socialTabs = [
   { href: "/social/calendario", nombre: "Calendario" },
   { href: "/social/editor", nombre: "Nuevo post" },
   { href: "/social/analytics", nombre: "Analytics" },
+  { href: "/social/linkedin", nombre: "LinkedIn" },
   { href: "/social/biblioteca", nombre: "Biblioteca" },
 ];
 

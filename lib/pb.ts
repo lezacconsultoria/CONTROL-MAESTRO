@@ -21,6 +21,30 @@ export async function pbWrite(method: "POST" | "PATCH" | "DELETE", path: string,
   return method === "DELETE" ? null : res.json();
 }
 
+export async function pbJson(method: "POST" | "PATCH" | "DELETE", path: string, body?: unknown) {
+  const token = (await cookies()).get(COOKIE)?.value ?? "";
+  const res = await fetch(`${PB_URL}/api/${path}`, {
+    method,
+    headers: { Authorization: token, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PocketBase ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  return method === "DELETE" ? null : res.json();
+}
+
+// Todas las filas de una colección (paginando de a 500).
+export async function pbTodos<T = Record<string, unknown>>(coleccion: string, filtro = "", orden = ""): Promise<T[]> {
+  const out: T[] = [];
+  for (let pagina = 1; ; pagina++) {
+    const q = new URLSearchParams({ perPage: "500", page: String(pagina) });
+    if (filtro) q.set("filter", filtro);
+    if (orden) q.set("sort", orden);
+    const r = await pb<{ items: T[]; totalPages: number }>(`collections/${coleccion}/records?${q}`);
+    out.push(...r.items);
+    if (pagina >= r.totalPages) return out;
+  }
+}
+
 export type List<T> = { items: T[]; totalItems: number };
 
 export type Cuenta = {
