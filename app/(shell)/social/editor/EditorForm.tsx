@@ -53,7 +53,9 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
   const total = (caption + (hashtags ? "\n\n" + hashtags : "")).length;
   const bloqueado = post.estado === "publicado" || post.estado === "publicando";
 
-  const unSoloArchivo = !esLinkedin && tipo !== "carrusel";
+  const tipoEf = esLinkedin ? (tipo === "imagen" ? "imagen" : "texto") : tipo;
+  const conArchivos = !esLinkedin || tipoEf === "imagen";
+  const unSoloArchivo = esLinkedin || tipo !== "carrusel";
   // Si el formato pasa a admitir un solo archivo, se conserva el último elegido.
   const cambiarTipo = (t: string) => {
     setTipo(t);
@@ -65,8 +67,8 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
   const agregar = (lista: File[]) => {
     const errores: string[] = [];
     const validos = lista.filter((f) => {
-      if (!PERMITIDOS.includes(f.type)) {
-        errores.push(`"${f.name}" no se puede usar: solo imágenes JPEG y videos MP4/MOV.`);
+      if (esLinkedin ? !["image/jpeg", "image/png"].includes(f.type) : !PERMITIDOS.includes(f.type)) {
+        errores.push(`"${f.name}" no se puede usar: ${esLinkedin ? "LinkedIn admite imágenes JPEG o PNG." : "solo imágenes JPEG y videos MP4/MOV."}`);
         return false;
       }
       if (f.size > MAX_MB * 1048576) {
@@ -119,9 +121,12 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
 
         <label className="block text-sm">
           <span className="mb-1 block text-muted">Formato</span>
-          <select name="tipo" value={esLinkedin ? "texto" : tipo} onChange={(e) => cambiarTipo(e.target.value)} disabled={bloqueado} className={campo}>
+          <select name="tipo" value={tipoEf} onChange={(e) => cambiarTipo(e.target.value)} disabled={bloqueado} className={campo}>
             {esLinkedin ? (
-              <option value="texto">Texto / enlace</option>
+              <>
+                <option value="texto">Texto / enlace</option>
+                <option value="imagen">Imagen</option>
+              </>
             ) : (
               <>
                 <option value="imagen">Imagen</option>
@@ -152,7 +157,7 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
             placeholder="Ej: Brújula Comercial, casos de éxito" className={campo} />
         </label>
 
-        {!esLinkedin && (
+        {conArchivos && (
           <div className="text-sm">
             <span className="mb-1 block text-muted">
               Archivos{unSoloArchivo ? " (1 archivo)" : ` (hasta ${MAX_ARCHIVOS})`}
@@ -163,7 +168,7 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
               name="media"
               multiple={!unSoloArchivo}
               disabled={bloqueado}
-              accept="image/jpeg,video/mp4,video/quicktime"
+              accept={esLinkedin ? "image/jpeg,image/png" : "image/jpeg,video/mp4,video/quicktime"}
               onChange={(e) => agregar(Array.from(e.target.files ?? []))}
               className="sr-only"
               id="archivos"
@@ -181,7 +186,7 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
               >
                 <span className="text-2xl">⬆️</span>
                 <span className="font-semibold">Hacé clic o arrastrá los archivos acá</span>
-                <span className="text-xs text-muted">Imágenes JPEG · Videos MP4 o MOV · hasta {MAX_MB} MB cada uno</span>
+                <span className="text-xs text-muted">{esLinkedin ? "Imagen JPEG o PNG" : "Imágenes JPEG · Videos MP4 o MOV"} · hasta {MAX_MB} MB cada uno</span>
               </label>
             )}
 
