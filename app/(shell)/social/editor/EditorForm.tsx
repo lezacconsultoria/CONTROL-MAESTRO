@@ -11,6 +11,7 @@ export type PostEditable = {
   caption: string;
   hashtags: string;
   pilar: string;
+  portada: string; // imagen de vista previa de posts importados
   programado_en: string; // ya en formato datetime-local
   estado: string;
   error: string;
@@ -130,9 +131,9 @@ export default function EditorForm({ post, cuentas }: { post: PostEditable; cuen
             <span className="h-7 w-7 rounded-full bg-accent" /> {cuentas.find((c) => c.id === cuentaId)?.handle}
           </div>
           <div className="aspect-square overflow-hidden rounded-md bg-surface-2">
-            {post.media[0] && (
+            {(post.media[0]?.url || post.portada) && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={post.media[0].url} alt="" className="h-full w-full object-cover" />
+              <img src={post.media[0]?.url || post.portada} alt="" className="h-full w-full object-cover" />
             )}
           </div>
           <p className="mt-2 line-clamp-6 whitespace-pre-line text-xs">

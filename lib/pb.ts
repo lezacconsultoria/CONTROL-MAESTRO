@@ -38,6 +38,7 @@ export type SocialPost = {
   caption: string;
   hashtags: string;
   pilar: string;
+  portada: string;
   media: string[];
   estado: "idea" | "borrador" | "programado" | "publicando" | "publicado" | "error";
   programado_en: string;

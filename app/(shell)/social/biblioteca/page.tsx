@@ -1,4 +1,4 @@
-import { pb, type List, type SocialPost, type IgPost } from "@/lib/pb";
+import { PB_URL, pb, type List, type SocialPost, type IgPost } from "@/lib/pb";
 import { duplicarPost } from "../editor/actions";
 
 const fmt = new Intl.NumberFormat("es-AR");
@@ -46,6 +46,15 @@ export default async function Biblioteca({
           return (
             <div key={p.id} className="flex flex-col rounded-lg border border-line bg-surface p-4 transition hover:border-accent">
               <a href={p.permalink} target="_blank" rel="noreferrer" className="block flex-1">
+                {p.portada && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`${PB_URL}/api/files/social_posts/${p.id}/${p.portada}?thumb=400x400`}
+                    alt=""
+                    className="mb-3 aspect-square w-full rounded-md object-cover"
+                    loading="lazy"
+                  />
+                )}
                 <div className="flex items-center justify-between text-xs text-muted">
                   <span className="rounded bg-surface-2 px-2 py-0.5 uppercase tracking-wide">{p.tipo}</span>
                   <span>{fecha(p.publicado_en)}</span>
