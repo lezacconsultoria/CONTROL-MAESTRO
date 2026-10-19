@@ -78,6 +78,8 @@ export default function EditorForm({
   // Tipos de archivo que acepta cada formato de LinkedIn.
   const mimesLi = tipoEf === "video" ? ["video/mp4"] : tipoEf === "documento" ? ["application/pdf"] : ["image/jpeg", "image/png"];
   const textoMimesLi = tipoEf === "video" ? "Video MP4" : tipoEf === "documento" ? "PDF" : "Imagen JPEG o PNG";
+  // Los videos se muestran con su proporción real: sin recortes ni barras.
+  const videoPreview = nuevos[0] ? esVideoMime(nuevos[0].type) : /\.(mp4|mov)$/i.test(post.media[0]?.nombre ?? "");
   const unSoloArchivo = esLinkedin || tipo !== "carrusel";
   // Si el formato pasa a admitir un solo archivo, se conserva el último elegido.
   const cambiarTipo = (t: string) => {
@@ -378,12 +380,12 @@ export default function EditorForm({
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
             <span className="h-7 w-7 rounded-full bg-accent" /> {cuentas.find((c) => c.id === cuentaId)?.handle}
           </div>
-          <div className={`overflow-hidden rounded-md bg-surface-2 ${tipoEf === "reel" ? "mx-auto aspect-[9/16] w-full max-w-[315px]" : "aspect-square"}`}>
+          <div className={`overflow-hidden rounded-md bg-surface-2 ${videoPreview ? "mx-auto w-fit max-w-full" : "aspect-square"}`}>
             {nuevos[0] ? (
               esPdfMime(nuevos[0].type) ? (
                 <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-muted">📄 {nuevos[0].name}</div>
               ) : esVideoMime(nuevos[0].type) ? (
-                <video key={urlsNuevos[0]} src={urlsNuevos[0]} controls muted playsInline className="h-full w-full object-cover" />
+                <video key={urlsNuevos[0]} src={urlsNuevos[0]} controls muted playsInline className="block h-auto max-h-[560px] w-auto max-w-full" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={urlsNuevos[0]} alt="" className="h-full w-full object-cover" />
@@ -391,7 +393,7 @@ export default function EditorForm({
             ) : /\.pdf$/i.test(post.media[0]?.nombre ?? "") ? (
               <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-muted">📄 {post.media[0].nombre}</div>
             ) : /\.(mp4|mov)$/i.test(post.media[0]?.nombre ?? "") ? (
-              <video src={post.media[0].url} controls muted playsInline className="h-full w-full object-cover" />
+              <video src={post.media[0].url} controls muted playsInline className="block h-auto max-h-[560px] w-auto max-w-full" />
             ) : (
               (post.media[0]?.url || post.portada) && (
                 // eslint-disable-next-line @next/next/no-img-element
