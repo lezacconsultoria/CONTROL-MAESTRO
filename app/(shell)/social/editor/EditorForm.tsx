@@ -5,6 +5,7 @@ import { guardarPost, eliminarPost, duplicarPost } from "./actions";
 import type { Cuenta } from "@/lib/pb";
 import Cargando from "@/components/Cargando";
 import BotonReutilizar from "@/components/BotonReutilizar";
+import CampoHistorial from "@/components/CampoHistorial";
 
 export type PostEditable = {
   id: string;
@@ -31,10 +32,21 @@ const mb = (n: number) => (n / 1048576).toFixed(1);
 const campo =
   "w-full rounded-md border border-line bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent";
 
-export default function EditorForm({ post, cuentas, aviso }: { post: PostEditable; cuentas: Cuenta[]; aviso?: string }) {
+export default function EditorForm({
+  post,
+  cuentas,
+  aviso,
+  historial,
+}: {
+  post: PostEditable;
+  cuentas: Cuenta[];
+  aviso?: string;
+  historial: { hashtags: string[]; pilar: string[] };
+}) {
   const [res, action, pending] = useActionState(guardarPost, { error: null });
   const [caption, setCaption] = useState(post.caption);
   const [hashtags, setHashtags] = useState(post.hashtags);
+  const [pilar, setPilar] = useState(post.pilar);
   const [cuentaId, setCuentaId] = useState(post.cuenta);
   const [tipo, setTipo] = useState(post.tipo);
   const [nuevos, setNuevos] = useState<File[]>([]);
@@ -172,17 +184,17 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
             onChange={(e) => setCaption(e.target.value)} className={campo} />
         </label>
 
-        <label className="block text-sm">
+        <div className="block text-sm">
           <span className="mb-1 block text-muted">Hashtags{esLinkedin ? "" : " (máx. 30)"}</span>
-          <input name="hashtags" value={hashtags} disabled={bloqueado}
-            onChange={(e) => setHashtags(e.target.value)} placeholder="#ventas #distribuidoras" className={campo} />
-        </label>
+          <CampoHistorial name="hashtags" value={hashtags} onChange={setHashtags} opciones={historial.hashtags}
+            disabled={bloqueado} placeholder="#ventas #distribuidoras" className={campo} />
+        </div>
 
-        <label className="block text-sm">
+        <div className="block text-sm">
           <span className="mb-1 block text-muted">Pilar / serie (opcional)</span>
-          <input name="pilar" defaultValue={post.pilar} disabled={bloqueado}
-            placeholder="Ej: Brújula Comercial, casos de éxito" className={campo} />
-        </label>
+          <CampoHistorial name="pilar" value={pilar} onChange={setPilar} opciones={historial.pilar}
+            disabled={bloqueado} placeholder="Ej: Brújula Comercial, casos de éxito" className={campo} />
+        </div>
 
         {conArchivos && (
           <div className="text-sm">
@@ -366,12 +378,12 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
             <span className="h-7 w-7 rounded-full bg-accent" /> {cuentas.find((c) => c.id === cuentaId)?.handle}
           </div>
-          <div className={`overflow-hidden rounded-md bg-surface-2 ${tipoEf === "reel" ? "mx-auto aspect-[9/16] max-h-[560px]" : "aspect-square"}`}>
+          <div className={`overflow-hidden rounded-md bg-surface-2 ${tipoEf === "reel" ? "mx-auto aspect-[9/16] w-full max-w-[315px]" : "aspect-square"}`}>
             {nuevos[0] ? (
               esPdfMime(nuevos[0].type) ? (
                 <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-muted">📄 {nuevos[0].name}</div>
               ) : esVideoMime(nuevos[0].type) ? (
-                <video key={urlsNuevos[0]} src={urlsNuevos[0]} controls muted playsInline className="h-full w-full object-contain bg-black" />
+                <video key={urlsNuevos[0]} src={urlsNuevos[0]} controls muted playsInline className="h-full w-full object-cover" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={urlsNuevos[0]} alt="" className="h-full w-full object-cover" />
@@ -379,7 +391,7 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
             ) : /\.pdf$/i.test(post.media[0]?.nombre ?? "") ? (
               <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-muted">📄 {post.media[0].nombre}</div>
             ) : /\.(mp4|mov)$/i.test(post.media[0]?.nombre ?? "") ? (
-              <video src={post.media[0].url} controls muted playsInline className="h-full w-full object-contain bg-black" />
+              <video src={post.media[0].url} controls muted playsInline className="h-full w-full object-cover" />
             ) : (
               (post.media[0]?.url || post.portada) && (
                 // eslint-disable-next-line @next/next/no-img-element

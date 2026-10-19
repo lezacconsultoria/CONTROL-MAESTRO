@@ -4,6 +4,22 @@ import { pb, type List, type SocialPost } from "@/lib/pb";
 import { diaAR, horaAR } from "@/lib/fecha";
 
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+const TIPO: Record<string, string> = {
+  imagen: "Imagen",
+  carrusel: "Carrusel",
+  reel: "Reel",
+  texto: "Texto",
+  video: "Video",
+  documento: "Documento PDF",
+};
+const CUANDO: Record<string, string> = {
+  idea: "Idea para las",
+  borrador: "Borrador para las",
+  programado: "Se publica a las",
+  publicando: "Publicando desde las",
+  publicado: "Publicado a las",
+  error: "Falló, era para las",
+};
 const COLOR: Record<string, string> = {
   idea: "bg-surface-2 text-muted",
   borrador: "bg-surface-2 text-ink",
@@ -33,7 +49,7 @@ export default async function Calendario({
   const rango = (c: string) => `(${c}>="${desde}" && ${c}<"${hasta}")`;
 
   const posts = await pb<List<SocialPost>>(
-    `collections/social_posts/records?perPage=500&sort=programado_en,publicado_en&filter=${encodeURIComponent(
+    `collections/social_posts/records?perPage=500&expand=cuenta&sort=programado_en,publicado_en&filter=${encodeURIComponent(
       `(${rango("programado_en")} || ${rango("publicado_en")}) && estado!="eliminado"`,
     )}`,
   );
@@ -80,12 +96,29 @@ export default async function Calendario({
                     <Link href={`/social/editor?fecha=${key}`} className="text-xs text-muted hover:text-accent">+</Link>
                   </div>
                   <div className="space-y-1">
-                    {(porDia.get(key) ?? []).map((p) => (
-                      <Link key={p.id} href={`/social/editor?id=${p.id}`}
-                        className={`block truncate rounded px-1.5 py-0.5 text-[11px] ${COLOR[p.estado]}`}>
-                        {horaAR(p.programado_en || p.publicado_en)} · {p.titulo || p.tipo}
-                      </Link>
-                    ))}
+                    {(porDia.get(key) ?? []).map((p) => {
+                      const hora = horaAR(p.programado_en || p.publicado_en);
+                      const cuenta = p.expand?.cuenta;
+                      const red = cuenta?.plataforma === "linkedin" ? "LinkedIn" : "Instagram";
+                      return (
+                        <div key={p.id} className="group relative">
+                          <Link href={`/social/editor?id=${p.id}`}
+                            className={`block truncate rounded px-1.5 py-0.5 text-[11px] ${COLOR[p.estado]}`}>
+                            {hora} · {p.titulo || p.tipo}
+                          </Link>
+                          <div
+                            role="tooltip"
+                            className={`pointer-events-none absolute z-20 hidden w-56 rounded-md border border-line bg-surface-2 px-3 py-2 text-xs shadow-lg group-hover:block ${
+                              i < 7 ? "top-full mt-1" : "bottom-full mb-1"
+                            } ${i % 7 >= 4 ? "right-0" : "left-0"}`}
+                          >
+                            <div className="font-semibold">{TIPO[p.tipo] ?? p.tipo} en {red}</div>
+                            {cuenta && <div className="text-muted">{cuenta.handle}</div>}
+                            <div className="mt-1">{CUANDO[p.estado] ?? "A las"} {hora}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </>
               )}

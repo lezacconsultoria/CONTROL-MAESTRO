@@ -1,4 +1,4 @@
-import { PB_URL, pb, type List, type SocialPost, type Cuenta } from "@/lib/pb";
+import { PB_URL, pb, pbTodos, type List, type SocialPost, type Cuenta } from "@/lib/pb";
 import { aInputLocal } from "@/lib/fecha";
 import EditorForm, { type PostEditable } from "./EditorForm";
 
@@ -8,7 +8,15 @@ export default async function Editor({
   searchParams: Promise<{ id?: string; fecha?: string; aviso?: string }>;
 }) {
   const { id, fecha, aviso } = await searchParams;
-  const cuentas = (await pb<List<Cuenta>>("collections/social_cuentas/records?perPage=50")).items;
+  const [cuentasRes, usados] = await Promise.all([
+    pb<List<Cuenta>>("collections/social_cuentas/records?perPage=50"),
+    pbTodos<{ campo: string; valor: string }>("social_historial", "", "-ultimo_uso"),
+  ]);
+  const cuentas = cuentasRes.items;
+  const historial = {
+    hashtags: usados.filter((u) => u.campo === "hashtags").map((u) => u.valor),
+    pilar: usados.filter((u) => u.campo === "pilar").map((u) => u.valor),
+  };
   let p: PostEditable = {
     id: "",
     cuenta: cuentas.find((c) => c.plataforma === "instagram")?.id ?? "",
@@ -46,7 +54,7 @@ export default async function Editor({
   return (
     <div>
       <h1 className="mb-6 font-display text-2xl font-bold">{id ? "Editar post" : "Nuevo post"}</h1>
-      <EditorForm key={p.id || "nuevo"} post={p} cuentas={cuentas} aviso={aviso} />
+      <EditorForm key={p.id || "nuevo"} post={p} cuentas={cuentas} aviso={aviso} historial={historial} />
     </div>
   );
 }

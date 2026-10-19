@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { PB_URL, pb, pbWrite, type Cuenta, type SocialPost } from "@/lib/pb";
+import { PB_URL, pb, pbJson, pbWrite, type Cuenta, type List, type SocialPost } from "@/lib/pb";
 import { desdeInputLocal } from "@/lib/fecha";
 
 type Estado = { error: string | null };
@@ -14,6 +14,24 @@ async function avisarPublicador(id: string) {
     body: JSON.stringify({ id }),
   });
   if (!res.ok) throw new Error(`Se guardó el post pero no se pudo avisar al publicador (${res.status}).`);
+}
+
+// Guarda en el historial lo escrito en hashtags y pilar para poder elegirlo la próxima vez.
+// Si falla no frena el guardado del post.
+async function recordarEnHistorial(pares: [string, string][]) {
+  const ahora = new Date().toISOString().replace("T", " ");
+  for (const [campo, valor] of pares) {
+    if (!valor) continue;
+    try {
+      const filtro = encodeURIComponent(`campo="${campo}" && valor="${valor.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`);
+      const r = await pb<List<{ id: string; usos: number }>>(`collections/social_historial/records?perPage=1&filter=${filtro}`);
+      if (r.items[0]) {
+        await pbJson("PATCH", `collections/social_historial/records/${r.items[0].id}`, { usos: (r.items[0].usos ?? 0) + 1, ultimo_uso: ahora });
+      } else {
+        await pbJson("POST", "collections/social_historial/records", { campo, valor, usos: 1, ultimo_uso: ahora });
+      }
+    } catch {}
+  }
 }
 
 export async function guardarPost(_: Estado, form: FormData): Promise<Estado> {
@@ -82,6 +100,7 @@ export async function guardarPost(_: Estado, form: FormData): Promise<Estado> {
     const r = await (id
       ? pbWrite("PATCH", `collections/social_posts/records/${id}`, body)
       : pbWrite("POST", "collections/social_posts/records", body));
+    await recordarEnHistorial([["hashtags", hashtags], ["pilar", String(form.get("pilar") ?? "").trim()]]);
     if (accion === "programar") await avisarPublicador(r.id);
   } catch (e) {
     return { error: (e as Error).message };
