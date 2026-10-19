@@ -366,12 +366,12 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
             <span className="h-7 w-7 rounded-full bg-accent" /> {cuentas.find((c) => c.id === cuentaId)?.handle}
           </div>
-          <div className="aspect-square overflow-hidden rounded-md bg-surface-2">
+          <div className={`overflow-hidden rounded-md bg-surface-2 ${tipoEf === "reel" ? "mx-auto aspect-[9/16] max-h-[560px]" : "aspect-square"}`}>
             {nuevos[0] ? (
               esPdfMime(nuevos[0].type) ? (
                 <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-muted">📄 {nuevos[0].name}</div>
               ) : esVideoMime(nuevos[0].type) ? (
-                <video key={urlsNuevos[0]} src={urlsNuevos[0]} controls muted playsInline className="h-full w-full object-cover" />
+                <video key={urlsNuevos[0]} src={urlsNuevos[0]} controls muted playsInline className="h-full w-full object-contain bg-black" />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={urlsNuevos[0]} alt="" className="h-full w-full object-cover" />
@@ -379,7 +379,7 @@ export default function EditorForm({ post, cuentas, aviso }: { post: PostEditabl
             ) : /\.pdf$/i.test(post.media[0]?.nombre ?? "") ? (
               <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-muted">📄 {post.media[0].nombre}</div>
             ) : /\.(mp4|mov)$/i.test(post.media[0]?.nombre ?? "") ? (
-              <video src={post.media[0].url} controls muted playsInline className="h-full w-full object-cover" />
+              <video src={post.media[0].url} controls muted playsInline className="h-full w-full object-contain bg-black" />
             ) : (
               (post.media[0]?.url || post.portada) && (
                 // eslint-disable-next-line @next/next/no-img-element

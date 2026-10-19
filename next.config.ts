@@ -5,7 +5,8 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   // Los posts suben videos de hasta 50 MB (y carruseles de varios archivos) por server action.
-  experimental: { serverActions: { bodySizeLimit: "200mb" } },
+  // proxy.ts también copia el cuerpo en memoria y por defecto corta a los 10 MB.
+  experimental: { serverActions: { bodySizeLimit: "200mb" }, proxyClientMaxBodySize: "200mb" },
   turbopack: {
     rules: {
       "*.css": {
