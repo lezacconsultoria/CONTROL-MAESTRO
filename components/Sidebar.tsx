@@ -22,6 +22,14 @@ const modulos: Modulo[] = [
       { href: "/social/biblioteca", nombre: "Biblioteca" },
     ],
   },
+  {
+    href: "/blog",
+    nombre: "Blog",
+    tabs: [
+      { href: "/blog", nombre: "Artículos" },
+      { href: "/blog/editor", nombre: "Nuevo artículo" },
+    ],
+  },
   { href: "#", nombre: "CRM / Leads" },
   {
     href: "/whatsapp",
