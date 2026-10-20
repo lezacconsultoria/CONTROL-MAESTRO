@@ -33,12 +33,13 @@ export async function pbJson(method: "POST" | "PATCH" | "DELETE", path: string, 
 }
 
 // Todas las filas de una colección (paginando de a 500).
-export async function pbTodos<T = Record<string, unknown>>(coleccion: string, filtro = "", orden = ""): Promise<T[]> {
+export async function pbTodos<T = Record<string, unknown>>(coleccion: string, filtro = "", orden = "", campos = ""): Promise<T[]> {
   const out: T[] = [];
   for (let pagina = 1; ; pagina++) {
     const q = new URLSearchParams({ perPage: "500", page: String(pagina) });
     if (filtro) q.set("filter", filtro);
     if (orden) q.set("sort", orden);
+    if (campos) q.set("fields", campos);
     const r = await pb<{ items: T[]; totalPages: number }>(`collections/${coleccion}/records?${q}`);
     out.push(...r.items);
     if (pagina >= r.totalPages) return out;
@@ -73,6 +74,65 @@ export type SocialPost = {
   publicado_en: string;
   externo_id: string;
   permalink: string;
+};
+
+// ── Bots WhatsApp ──────────────────────────────────────────────
+export type WaConfig = {
+  id: string;
+  activo: boolean;
+  aviso_numero: string;
+  hora_desde: number;
+  hora_hasta: number;
+  dias: number[]; // 1 = lunes … 7 = domingo
+  tope_diario: number;
+  intervalo_min_seg: number;
+  intervalo_max_seg: number;
+  updated: string;
+};
+
+export type WaCampana = {
+  id: string;
+  nombre: string;
+  etiqueta: string;
+  estado: "borrador" | "activa" | "pausada" | "terminada";
+  mensaje_1: string;
+  mensaje_2: string;
+  mensaje_3: string;
+  espera_horas_2: number;
+  espera_horas_3: number;
+  espera_cierre_horas: number;
+  created: string;
+  updated: string;
+};
+
+export type WaContacto = {
+  id: string;
+  telefono: string; // formato 549…
+  nombre: string;
+  empresa: string;
+  etiqueta: string;
+  origen: string;
+  campana: string;
+  estado: "nuevo" | "en_secuencia" | "respondio" | "sin_respuesta" | "no_contactar" | "entrante";
+  paso: number; // 0-3
+  proximo_envio: string;
+  agente_activo: boolean;
+  ultimo_mensaje: string;
+  created: string;
+  updated: string;
+  expand?: { campana?: WaCampana };
+};
+
+export type WaMensaje = {
+  id: string;
+  contacto: string;
+  direccion: "in" | "out";
+  autor: "contacto" | "agente" | "campana" | "humano";
+  texto: string;
+  wa_id: string;
+  media: string;
+  created: string;
+  expand?: { contacto?: WaContacto };
 };
 
 export type IgPost = {

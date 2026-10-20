@@ -1,20 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { pb, pbJson, pbTodos, type Cuenta } from "@/lib/pb";
+import { pb, type Cuenta } from "@/lib/pb";
+import { apiPb as api } from "@/lib/pb-api";
 import { leerAnalitica } from "@/lib/linkedin-import";
-import { guardarAnalitica, type Api } from "@/lib/linkedin-sync";
+import { guardarAnalitica } from "@/lib/linkedin-sync";
 
 export type EstadoSubida = { error: string | null; ok?: string };
 
 const MAX_MB = 10;
-
-const api: Api = {
-  listar: (coleccion, filtro) => pbTodos(coleccion, filtro),
-  crear: (coleccion, datos) => pbJson("POST", `collections/${coleccion}/records`, datos),
-  actualizar: (coleccion, id, datos) => pbJson("PATCH", `collections/${coleccion}/records/${id}`, datos),
-  borrar: (coleccion, id) => pbJson("DELETE", `collections/${coleccion}/records/${id}`),
-};
 
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 

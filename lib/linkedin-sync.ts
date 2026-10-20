@@ -16,7 +16,7 @@ export type Resultado = {
   audiencia: number;
 };
 
-async function enParalelo<T>(items: T[], n: number, fn: (x: T) => Promise<unknown>) {
+export async function enParalelo<T>(items: T[], n: number, fn: (x: T) => Promise<unknown>) {
   let i = 0;
   await Promise.all(
     Array.from({ length: Math.min(n, items.length) }, async () => {

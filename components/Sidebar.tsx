@@ -3,22 +3,42 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const modulos = [
-  { href: "/social", nombre: "Social", activo: true },
-  { href: "#", nombre: "CRM / Leads", activo: false },
-  { href: "#", nombre: "Bots WhatsApp", activo: false },
-  { href: "#", nombre: "Tablero", activo: false },
-  { href: "#", nombre: "Notas", activo: false },
+type Modulo = {
+  href: string;
+  nombre: string;
+  tabs?: { href: string; nombre: string }[]; // sin tabs = módulo todavía no disponible
+};
+
+const modulos: Modulo[] = [
+  {
+    href: "/social",
+    nombre: "Social",
+    tabs: [
+      { href: "/social", nombre: "Resumen" },
+      { href: "/social/calendario", nombre: "Calendario" },
+      { href: "/social/editor", nombre: "Nuevo post" },
+      { href: "/social/analytics", nombre: "Analytics" },
+      { href: "/social/linkedin", nombre: "LinkedIn" },
+      { href: "/social/biblioteca", nombre: "Biblioteca" },
+    ],
+  },
+  { href: "#", nombre: "CRM / Leads" },
+  {
+    href: "/whatsapp",
+    nombre: "Bots WhatsApp",
+    tabs: [
+      { href: "/whatsapp", nombre: "Resumen" },
+      { href: "/whatsapp/campanas", nombre: "Campañas" },
+      { href: "/whatsapp/contactos", nombre: "Contactos" },
+      { href: "/whatsapp/chats", nombre: "Chats" },
+      { href: "/whatsapp/config", nombre: "Config" },
+    ],
+  },
+  { href: "#", nombre: "Tablero" },
+  { href: "#", nombre: "Notas" },
 ];
 
-const socialTabs = [
-  { href: "/social", nombre: "Resumen" },
-  { href: "/social/calendario", nombre: "Calendario" },
-  { href: "/social/editor", nombre: "Nuevo post" },
-  { href: "/social/analytics", nombre: "Analytics" },
-  { href: "/social/linkedin", nombre: "LinkedIn" },
-  { href: "/social/biblioteca", nombre: "Biblioteca" },
-];
+const dentroDe = (path: string, href: string) => href !== "#" && (path === href || path.startsWith(href + "/"));
 
 export default function Sidebar() {
   const path = usePathname();
@@ -28,39 +48,47 @@ export default function Sidebar() {
         Control <span className="text-accent">Maestro</span>
       </div>
       <nav className="flex flex-col gap-1">
-        {modulos.map((m) =>
-          m.activo ? (
+        {modulos.map((m) => {
+          if (!m.tabs) {
+            return (
+              <div
+                key={m.nombre}
+                className="flex items-center justify-between px-3 py-2 text-sm text-muted/60"
+              >
+                {m.nombre}
+                <span className="text-[10px] uppercase tracking-wider">pronto</span>
+              </div>
+            );
+          }
+          const actual = dentroDe(path, m.href);
+          return (
             <div key={m.nombre}>
               <Link
                 href={m.href}
-                className="block rounded-md bg-surface-2 px-3 py-2 text-sm font-semibold"
+                className={`block rounded-md px-3 py-2 text-sm font-semibold ${actual ? "bg-surface-2" : "text-muted hover:text-ink"}`}
               >
                 {m.nombre}
               </Link>
-              <div className="ml-3 mt-1 flex flex-col border-l border-line pl-3">
-                {socialTabs.map((t) => (
-                  <Link
-                    key={t.href}
-                    href={t.href}
-                    className={`rounded px-2 py-1.5 text-sm ${
-                      path === t.href ? "text-accent" : "text-muted hover:text-ink"
-                    }`}
-                  >
-                    {t.nombre}
-                  </Link>
-                ))}
-              </div>
+              {actual && (
+                <div className="ml-3 mt-1 flex flex-col border-l border-line pl-3">
+                  {m.tabs.map((t) => (
+                    <Link
+                      key={t.href}
+                      href={t.href}
+                      className={`rounded px-2 py-1.5 text-sm ${
+                        path === t.href || (t.href !== m.href && path.startsWith(t.href + "/"))
+                          ? "text-accent"
+                          : "text-muted hover:text-ink"
+                      }`}
+                    >
+                      {t.nombre}
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            <div
-              key={m.nombre}
-              className="flex items-center justify-between px-3 py-2 text-sm text-muted/60"
-            >
-              {m.nombre}
-              <span className="text-[10px] uppercase tracking-wider">pronto</span>
-            </div>
-          ),
-        )}
+          );
+        })}
       </nav>
     </aside>
   );
