@@ -2,7 +2,11 @@ import Link from "next/link";
 import { pb, type List, type WaContacto, type WaMensaje } from "@/lib/pb";
 import { diaAR, horaAR } from "@/lib/fecha";
 import { AUTOR, ESTADO_CONTACTO, escapar, fechaHora, verTelefono } from "@/lib/wa";
+import AutoActualizar from "@/components/AutoActualizar";
+import { versionWhatsapp } from "@/lib/wa-version";
 import BotonAgente from "../BotonAgente";
+import CajaMensaje from "./CajaMensaje";
+import HistorialScroll from "./HistorialScroll";
 
 const ID = /^[a-z0-9]{15}$/;
 
@@ -17,6 +21,8 @@ export default async function Chats({ searchParams }: { searchParams: Promise<{ 
   const elegido = sp.c && ID.test(sp.c) ? sp.c : "";
 
   const filtro = ['ultimo_mensaje!=""', ...(q ? [`(nombre~"${escapar(q)}" || empresa~"${escapar(q)}" || telefono~"${escapar(q.replace(/\D/g, "") || q)}")`] : [])].join(" && ");
+  // La huella se toma antes de leer los datos: si algo cambia mientras se arma la página, el próximo sondeo lo detecta.
+  const version = await versionWhatsapp();
   const [lista, recientes, contacto, mensajes] = await Promise.all([
     pb<List<WaContacto>>(`collections/wa_contactos/records?perPage=100&sort=-ultimo_mensaje&filter=${encodeURIComponent(filtro)}`),
     pb<List<WaMensaje>>("collections/wa_mensajes/records?perPage=300&sort=-created&fields=contacto,texto,direccion,created"),
@@ -35,6 +41,7 @@ export default async function Chats({ searchParams }: { searchParams: Promise<{ 
 
   return (
     <div>
+      <AutoActualizar inicial={version} />
       <h1 className="font-display text-2xl font-bold">Chats</h1>
       <p className="mt-1 text-sm text-muted">Conversaciones de WhatsApp con los contactos.</p>
 
@@ -96,7 +103,7 @@ export default async function Chats({ searchParams }: { searchParams: Promise<{ 
                 </div>
               </header>
 
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4">
+              <HistorialScroll key={elegido}>
                 {historial.length === 0 && <p className="py-10 text-center text-sm text-muted">Todavía no hay mensajes con este contacto.</p>}
                 {historial.map((m, i) => {
                   const saliente = m.direccion === "out";
@@ -120,19 +127,9 @@ export default async function Chats({ searchParams }: { searchParams: Promise<{ 
                     </div>
                   );
                 })}
-              </div>
+              </HistorialScroll>
 
-              <footer className="flex items-end gap-2 border-t border-line p-3">
-                <textarea
-                  disabled
-                  rows={2}
-                  placeholder="El envío de mensajes desde el panel se habilita cuando esté el motor de envío."
-                  className="flex-1 resize-none rounded-md border border-line bg-surface-2 px-3 py-2 text-sm opacity-60"
-                />
-                <button disabled title="Disponible cuando esté el motor de envío" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white opacity-40">
-                  Enviar
-                </button>
-              </footer>
+              <CajaMensaje key={elegido} />
             </>
           )}
         </section>

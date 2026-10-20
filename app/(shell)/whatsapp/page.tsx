@@ -2,6 +2,8 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { pb, pbTodos, type List, type WaCampana, type WaConfig, type WaContacto, type WaMensaje } from "@/lib/pb";
 import { DIAS_SEMANA, ESTADO_CAMPANA, fechaHora, verTelefono } from "@/lib/wa";
+import AutoActualizar from "@/components/AutoActualizar";
+import { versionWhatsapp } from "@/lib/wa-version";
 
 const fmt = new Intl.NumberFormat("es-AR");
 
@@ -24,6 +26,7 @@ function medianocheAR() {
 
 export default async function ResumenWhatsapp() {
   await connection(); // "hoy" cambia en cada visita
+  const version = await versionWhatsapp(); // antes de leer los datos, para no perder cambios intermedios
   const inicioHoy = encodeURIComponent(`created>="${medianocheAR()}"`);
   const contar = (dir: string) =>
     pb<List<WaMensaje>>(`collections/wa_mensajes/records?perPage=1&fields=id&filter=${encodeURIComponent(`direccion="${dir}" && `)}${inicioHoy}`);
@@ -48,6 +51,7 @@ export default async function ResumenWhatsapp() {
 
   return (
     <div>
+      <AutoActualizar inicial={version} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-bold">Bots WhatsApp</h1>
