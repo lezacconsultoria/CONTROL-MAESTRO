@@ -130,7 +130,7 @@ export default async function Chats({ searchParams }: { searchParams: Promise<{ 
                 })}
               </HistorialScroll>
 
-              <CajaMensaje key={elegido} />
+              <CajaMensaje key={elegido} contactoId={elegido} />
             </>
           )}
         </section>
