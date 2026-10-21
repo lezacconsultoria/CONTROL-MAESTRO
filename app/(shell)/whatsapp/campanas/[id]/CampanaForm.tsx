@@ -5,7 +5,10 @@ import { useActionState, useRef, useState } from "react";
 import { eliminarCampana, guardarCampana } from "../actions";
 import Cargando from "@/components/Cargando";
 import type { WaPaso } from "@/lib/pb";
-import { ESTADO_CAMPANA, MAX_MENSAJES_PASO, MAX_PASOS, MAX_TEXTO, VARIABLES, enlacesDe, partesConEnlaces, rellenar } from "@/lib/wa";
+import { ESTADO_CAMPANA, MAX_MENSAJES_PASO, MAX_PASOS, MAX_TEXTO, VARIABLES, enlacesDe, normEtiqueta, partesConEnlaces, rellenar } from "@/lib/wa";
+
+/** Una etiqueta de Contactos: cuántos contactos la tienen y cuántos todavía no recibieron ninguna campaña. */
+export type EtiquetaInfo = { nombre: string; total: number; sinContactar: number };
 
 export type CampanaEditable = {
   id: string;
@@ -22,8 +25,11 @@ const campoHoras = "w-20 rounded-md border border-line bg-surface-2 px-2 py-1 te
 const boton = "rounded-md bg-surface-2 px-2.5 py-1 text-xs text-muted hover:text-ink disabled:opacity-40 disabled:hover:text-muted";
 const EJEMPLO = { nombre: "Juan", empresa: "Distribuidora Norte" };
 
-export default function CampanaForm({ campana, contactos }: { campana: CampanaEditable; contactos: number }) {
+export default function CampanaForm({ campana, contactos, etiquetas }: { campana: CampanaEditable; contactos: number; etiquetas: EtiquetaInfo[] }) {
   const [res, action, pending] = useActionState(guardarCampana, { error: null });
+  const [etiqueta, setEtiqueta] = useState(campana.etiqueta);
+  const [estado, setEstado] = useState(campana.estado);
+  const destino = etiquetas.find((e) => e.nombre === normEtiqueta(etiqueta));
   const [pasos, setPasos] = useState<WaPaso[]>(campana.pasos.length ? campana.pasos : [{ espera_horas: 0, mensajes: [""] }]);
   const areas = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const ultimo = useRef({ p: 0, m: 0 }); // dónde estuvo el cursor por última vez
@@ -71,17 +77,40 @@ export default function CampanaForm({ campana, contactos }: { campana: CampanaEd
             <input name="nombre" required maxLength={120} defaultValue={campana.nombre} placeholder="Ej: Distribuidoras de Cuyo – octubre" className={campo} />
           </label>
           <label className="block text-sm">
-            <span className="mb-1 block text-muted">Etiqueta</span>
-            <input name="etiqueta" defaultValue={campana.etiqueta} placeholder="Ej: distribuidoras" className={campo} />
+            <span className="mb-1 block text-muted">Se envía a la etiqueta</span>
+            <input name="etiqueta" list="etiquetas-contactos" value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)}
+              maxLength={60} placeholder="Ej: distribuidoras" className={campo} />
+            <datalist id="etiquetas-contactos">
+              {etiquetas.map((e) => (
+                <option key={e.nombre} value={e.nombre}>{`${e.total} contactos`}</option>
+              ))}
+            </datalist>
           </label>
           <label className="block text-sm">
             <span className="mb-1 block text-muted">Estado</span>
-            <select name="estado" defaultValue={campana.estado} className={campo}>
+            <select name="estado" value={estado} onChange={(e) => setEstado(e.target.value)} className={campo}>
               {Object.entries(ESTADO_CAMPANA).map(([k, e]) => (
                 <option key={k} value={k}>{e.nombre}</option>
               ))}
             </select>
           </label>
+        </div>
+
+        <div className="rounded-lg border border-line bg-surface p-3 text-xs">
+          {!normEtiqueta(etiqueta) ? (
+            <p className="text-muted">
+              Elegí a qué etiqueta de <b className="text-ink">Contactos</b> se le envía. Si todavía no sabés, dejala vacía y guardala como{" "}
+              <b className="text-ink">Borrador</b>: no se envía nada.
+            </p>
+          ) : destino ? (
+            <p className="text-muted">
+              <b className="text-ink">{destino.sinContactar}</b> {destino.sinContactar === 1 ? "contacto" : "contactos"} con la etiqueta «{destino.nombre}» todavía
+              no {destino.sinContactar === 1 ? "recibió" : "recibieron"} ninguna campaña ({destino.total} en total).
+              {estado === "activa" ? " Al guardarla activa, el envío empieza solo, dentro del horario y el tope diario." : " Con la campaña en Borrador no se envía nada."}
+            </p>
+          ) : (
+            <p className="text-[#f5c842]">No hay contactos con la etiqueta «{normEtiqueta(etiqueta)}» todavía. Cargalos en Contactos con esa etiqueta.</p>
+          )}
         </div>
 
         <div className="space-y-1 text-xs text-muted">

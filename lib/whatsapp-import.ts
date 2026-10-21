@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { enParalelo, type Api } from "./linkedin-sync";
+import { normEtiqueta } from "./wa";
 
 // Importa contactos desde un Excel/CSV: detecta las columnas por su título y deja los
 // teléfonos en formato 549… (Argentina, celular), que es como los guarda wa_contactos.
@@ -110,9 +111,9 @@ export async function guardarContactos(
         telefono: f.telefono,
         nombre: f.nombre,
         empresa: f.empresa,
-        etiqueta: f.etiqueta || opciones.etiqueta,
+        etiqueta: normEtiqueta(f.etiqueta || opciones.etiqueta),
         origen: opciones.origen,
-        campana: opciones.campana,
+        campana: "", // la campaña se asigna sola cuando una campaña activa tiene la etiqueta de este contacto
         estado: "nuevo",
         paso: 0,
         agente_activo: false,
@@ -120,9 +121,11 @@ export async function guardarContactos(
       r.nuevos++;
       return;
     }
-    // Un contacto que ya existe no cambia de estado ni de campaña: solo se completan datos vacíos.
+    // Un contacto que ya existe no cambia de estado, de campaña ni de etiqueta: solo se completan datos vacíos.
     const cambios: Record<string, unknown> = {};
-    for (const k of ["nombre", "empresa", "etiqueta"] as const) if (!previo[k] && f[k]) cambios[k] = f[k];
+    for (const k of ["nombre", "empresa"] as const) if (!previo[k] && f[k]) cambios[k] = f[k];
+    const etiqueta = normEtiqueta(f.etiqueta || opciones.etiqueta);
+    if (!previo.etiqueta && etiqueta) cambios.etiqueta = etiqueta;
     if (Object.keys(cambios).length) {
       await api.actualizar("wa_contactos", String(previo.id), cambios);
       r.actualizados++;

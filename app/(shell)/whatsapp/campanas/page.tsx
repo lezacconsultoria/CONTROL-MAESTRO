@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { pbTodos, type WaCampana } from "@/lib/pb";
-import { ESTADO_CAMPANA, pasosDe } from "@/lib/wa";
+import { ESTADO_CAMPANA, normEtiqueta, pasosDe } from "@/lib/wa";
 import { cambiarEstadoCampana } from "./actions";
 
 const fmt = new Intl.NumberFormat("es-AR");
@@ -20,10 +20,16 @@ function BotonEstado({ id, estado, texto, peligro }: { id: string; estado: strin
 export default async function Campanas() {
   const [campanas, contactos] = await Promise.all([
     pbTodos<WaCampana>("wa_campanas", "", "-created"),
-    pbTodos<{ campana: string; estado: string }>("wa_contactos", 'campana!=""', "", "campana,estado"),
+    pbTodos<{ campana: string; estado: string; etiqueta: string }>("wa_contactos", "", "", "campana,estado,etiqueta"),
   ]);
+  // Contactos que todavía no recibieron ninguna campaña, por etiqueta: a esos les va a llegar la campaña con esa etiqueta.
+  const sinContactar = new Map<string, number>();
+  for (const c of contactos) {
+    if (c.estado === "nuevo" && !c.campana && c.etiqueta) sinContactar.set(normEtiqueta(c.etiqueta), (sinContactar.get(normEtiqueta(c.etiqueta)) ?? 0) + 1);
+  }
   const porCampana = new Map<string, { total: number; enSecuencia: number; respondieron: number }>();
   for (const c of contactos) {
+    if (!c.campana) continue;
     const x = porCampana.get(c.campana) ?? { total: 0, enSecuencia: 0, respondieron: 0 };
     x.total++;
     if (c.estado === "en_secuencia") x.enSecuencia++;
@@ -59,7 +65,11 @@ export default async function Campanas() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="truncate font-semibold">{c.nombre}</h2>
-                    <p className="text-xs text-muted">{c.etiqueta ? `Etiqueta: ${c.etiqueta}` : "Sin etiqueta"}</p>
+                    <p className="text-xs text-muted">
+                      {c.etiqueta
+                        ? `Se envía a la etiqueta «${normEtiqueta(c.etiqueta)}» · ${fmt.format(sinContactar.get(normEtiqueta(c.etiqueta)) ?? 0)} sin contactar`
+                        : "Sin etiqueta: no se envía a nadie"}
+                    </p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${e.clase}`}>{e.nombre}</span>
                 </div>

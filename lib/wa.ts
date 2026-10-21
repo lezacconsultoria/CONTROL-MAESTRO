@@ -61,6 +61,9 @@ export function verTelefono(t: string) {
   return /^549\d{10}$/.test(t) ? `+54 9 ${t.slice(3)}` : t;
 }
 
+/** Las etiquetas se guardan en minúscula y sin espacios sobrantes, así «Distribuidoras» y «distribuidoras» son la misma. */
+export const normEtiqueta = (s: string) => s.trim().toLowerCase();
+
 export const MAX_PASOS = 6;
 export const MAX_MENSAJES_PASO = 4;
 export const MAX_TEXTO = 1000;

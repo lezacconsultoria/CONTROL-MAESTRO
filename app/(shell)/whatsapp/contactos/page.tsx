@@ -63,7 +63,7 @@ export default async function Contactos({
       </div>
 
       <div className="mt-5">
-        <ImportarContactos campanas={campanas.map((c) => ({ id: c.id, nombre: c.nombre }))} />
+        <ImportarContactos etiquetas={etiquetas} />
       </div>
 
       <form className="mt-6 flex flex-wrap items-center gap-2">

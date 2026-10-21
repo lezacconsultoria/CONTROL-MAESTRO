@@ -7,7 +7,7 @@ import Cargando from "@/components/Cargando";
 const campo =
   "w-full rounded-md border border-line bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent";
 
-export default function ImportarContactos({ campanas }: { campanas: { id: string; nombre: string }[] }) {
+export default function ImportarContactos({ etiquetas }: { etiquetas: string[] }) {
   const [res, action, pending] = useActionState(importarContactos, { error: null });
   const [archivo, setArchivo] = useState<File | null>(null);
   const [arrastrando, setArrastrando] = useState(false);
@@ -33,24 +33,20 @@ export default function ImportarContactos({ campanas }: { campanas: { id: string
       <h2 className="text-sm font-semibold">Importar contactos</h2>
       <p className="mt-1 text-xs text-muted">
         Subí un Excel o CSV con una columna de <b>Teléfono</b> (también sirve Celular o WhatsApp) y, si querés, <b>Nombre</b>, <b>Empresa</b> y{" "}
-        <b>Etiqueta</b>. Los números se pasan solos al formato 549… Los que ya existen no se duplican ni cambian de estado.
+        <b>Etiqueta</b>. Los números se pasan solos al formato 549… Los que ya existen no se duplican ni cambian de estado ni de etiqueta.
+        Después, en <b>Campañas</b>, elegís a qué etiqueta se le envía cada campaña.
       </p>
 
-      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_2fr_auto] xl:items-stretch">
+      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-[1.2fr_2fr_auto] xl:items-stretch">
         <label className="block text-xs text-muted">
-          Campaña (opcional)
-          <select name="campana" defaultValue="" className={`${campo} mt-1`}>
-            <option value="">Sin campaña</option>
-            {campanas.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
+          Etiqueta de estos contactos
+          <input name="etiqueta" list="etiquetas-existentes" maxLength={60} placeholder="Ej: distribuidoras" className={`${campo} mt-1`} />
+          <datalist id="etiquetas-existentes">
+            {etiquetas.map((e) => (
+              <option key={e} value={e} />
             ))}
-          </select>
-        </label>
-        <label className="block text-xs text-muted">
-          Etiqueta para los que no la traen
-          <input name="etiqueta" maxLength={60} placeholder="Ej: distribuidoras-cuyo" className={`${campo} mt-1`} />
+          </datalist>
+          <span className="mt-1 block text-[11px]">Se aplica a los que no traen una columna «Etiqueta».</span>
         </label>
 
         <div>

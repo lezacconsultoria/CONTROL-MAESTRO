@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { pb, pbJson, type WaCampana } from "@/lib/pb";
+import { pbJson } from "@/lib/pb";
 import { apiPb } from "@/lib/pb-api";
+import { normEtiqueta } from "@/lib/wa";
 import { guardarContactos, leerContactos } from "@/lib/whatsapp-import";
 
 export type EstadoImportacion = { error: string | null; ok?: string; detalle?: string[] };
@@ -14,20 +15,18 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno
 
 export async function importarContactos(_: EstadoImportacion, form: FormData): Promise<EstadoImportacion> {
   const archivo = form.get("archivo");
-  const campana = String(form.get("campana") ?? "");
-  const etiqueta = String(form.get("etiqueta") ?? "").trim().slice(0, 60);
+  const etiqueta = normEtiqueta(String(form.get("etiqueta") ?? "").slice(0, 60));
   if (!(archivo instanceof File) || archivo.size === 0) return { error: "Elegí el Excel o CSV con los contactos." };
   if (!/\.(xlsx|xls|csv)$/i.test(archivo.name)) return { error: "El archivo tiene que ser .xlsx, .xls o .csv." };
   if (archivo.size > MAX_MB * 1048576) return { error: `El archivo pesa más de ${MAX_MB} MB.` };
 
   try {
-    if (campana) {
-      if (!ID.test(campana)) return { error: "Campaña inválida." };
-      await pb<WaCampana>(`collections/wa_campanas/records/${campana}`); // falla si no existe
-    }
     const filas = leerContactos(await archivo.arrayBuffer());
     if (!filas.length) return { error: "El archivo no tiene filas con datos." };
-    const r = await guardarContactos(filas, { campana, etiqueta, origen: "excel" }, apiPb);
+    if (!etiqueta && filas.every((f) => !f.etiqueta)) {
+      return { error: "Poné una etiqueta para estos contactos (o usá una columna «Etiqueta» en el archivo). Sin etiqueta, ninguna campaña los va a encontrar." };
+    }
+    const r = await guardarContactos(filas, { campana: "", etiqueta, origen: "excel" }, apiPb);
     revalidatePath("/whatsapp", "layout");
 
     const detalle: string[] = [];
@@ -39,7 +38,7 @@ export async function importarContactos(_: EstadoImportacion, form: FormData): P
     }
     return {
       error: null,
-      ok: `Listo: ${plural(r.nuevos, "contacto nuevo", "contactos nuevos")} y ${plural(r.actualizados, "actualizado", "actualizados")} (los que ya existían no cambian de estado ni de campaña).`,
+      ok: `Listo: ${plural(r.nuevos, "contacto nuevo", "contactos nuevos")} y ${plural(r.actualizados, "actualizado", "actualizados")} (los que ya existían conservan su estado y su etiqueta).`,
       detalle,
     };
   } catch (e) {

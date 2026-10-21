@@ -3,12 +3,30 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { pb, pbJson, type List, type WaCampana, type WaPaso } from "@/lib/pb";
-import { MAX_MENSAJES_PASO, MAX_PASOS, MAX_TEXTO, pasosDe, variablesDesconocidas } from "@/lib/wa";
+import { MAX_MENSAJES_PASO, MAX_PASOS, MAX_TEXTO, escapar, normEtiqueta, pasosDe, variablesDesconocidas } from "@/lib/wa";
 
 export type EstadoCampana = { error: string | null };
 
 const ID = /^[a-z0-9]{15}$/;
 const ESTADOS = ["borrador", "activa", "pausada", "terminada"];
+
+/** Por qué esta campaña no se puede activar (o null si se puede): necesita una etiqueta y no puede repetirla con otra activa. */
+async function problemaDeActivacion(id: string, etiqueta: string): Promise<string | null> {
+  if (!etiqueta) {
+    // Campañas viejas con contactos asignados a mano pueden activarse sin etiqueta.
+    const asignados = id
+      ? await pb<List<{ id: string }>>(`collections/wa_contactos/records?perPage=1&filter=${encodeURIComponent(`campana="${id}"`)}`)
+      : null;
+    return asignados && asignados.totalItems > 0 ? null : "Para activar la campaña elegí a qué etiqueta se le envía, o dejala en borrador.";
+  }
+  const filtro = `estado="activa" && etiqueta="${escapar(etiqueta)}"${id ? ` && id!="${id}"` : ""}`;
+  const otras = await pb<List<{ id: string; nombre: string }>>(
+    `collections/wa_campanas/records?perPage=1&fields=id,nombre&filter=${encodeURIComponent(filtro)}`,
+  );
+  return otras.items.length
+    ? `Ya hay otra campaña activa para la etiqueta «${etiqueta}»: «${otras.items[0].nombre}». Pausala o elegí otra etiqueta.`
+    : null;
+}
 
 /** Lee y valida los pasos que manda el formulario (JSON). Devuelve los pasos o un mensaje de error. */
 function leerPasos(crudo: FormDataEntryValue | null): { pasos: WaPaso[] } | { error: string } {
@@ -54,7 +72,7 @@ export async function guardarCampana(_: EstadoCampana, form: FormData): Promise<
   if (id && !ID.test(id)) return { error: "Campaña inválida." };
 
   const nombre = String(form.get("nombre") ?? "").trim();
-  const etiqueta = String(form.get("etiqueta") ?? "").trim();
+  const etiqueta = normEtiqueta(String(form.get("etiqueta") ?? ""));
   const estado = String(form.get("estado") ?? "borrador");
   const cierre = horas(form.get("espera_cierre_horas"));
   const leidos = leerPasos(form.get("pasos"));
@@ -65,6 +83,10 @@ export async function guardarCampana(_: EstadoCampana, form: FormData): Promise<
   if (cierre === null) return { error: "La espera para cerrar son horas enteras (0 o más)." };
   if ("error" in leidos) return { error: leidos.error };
   if (leidos.pasos.length === 0 && estado === "activa") return { error: "Para activar la campaña escribí al menos un mensaje en el paso 1." };
+  if (estado === "activa") {
+    const problema = await problemaDeActivacion(id, etiqueta);
+    if (problema) return { error: problema };
+  }
 
   // Los campos del formato anterior (mensaje_1..3) se vacían: desde acá la campaña vive en `pasos`.
   const datos = {
@@ -95,6 +117,8 @@ export async function cambiarEstadoCampana(form: FormData) {
   if (estado === "activa") {
     const c = await pb<WaCampana>(`collections/wa_campanas/records/${id}`);
     if (pasosDe(c).length === 0) throw new Error("La campaña no tiene mensajes: completala antes de activarla.");
+    const problema = await problemaDeActivacion(id, normEtiqueta(c.etiqueta ?? ""));
+    if (problema) throw new Error(problema);
   }
   await pbJson("PATCH", `collections/wa_campanas/records/${id}`, { estado });
   revalidatePath("/whatsapp", "layout");
