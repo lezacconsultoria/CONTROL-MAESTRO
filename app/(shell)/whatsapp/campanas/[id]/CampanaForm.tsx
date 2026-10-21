@@ -24,10 +24,13 @@ const campo =
 const campoHoras = "w-20 rounded-md border border-line bg-surface-2 px-2 py-1 text-sm text-ink outline-none focus:border-accent";
 const boton = "rounded-md bg-surface-2 px-2.5 py-1 text-xs text-muted hover:text-ink disabled:opacity-40 disabled:hover:text-muted";
 const EJEMPLO = { nombre: "Juan", empresa: "Distribuidora Norte" };
+const OTRA = "__otra__";
 
 export default function CampanaForm({ campana, contactos, etiquetas }: { campana: CampanaEditable; contactos: number; etiquetas: EtiquetaInfo[] }) {
   const [res, action, pending] = useActionState(guardarCampana, { error: null });
   const [etiqueta, setEtiqueta] = useState(campana.etiqueta);
+  // Si la campaña ya tiene una etiqueta que todavía no existe en Contactos, se muestra como «Otra».
+  const [otra, setOtra] = useState(!!campana.etiqueta && !etiquetas.some((e) => e.nombre === normEtiqueta(campana.etiqueta)));
   const [estado, setEstado] = useState(campana.estado);
   const destino = etiquetas.find((e) => e.nombre === normEtiqueta(etiqueta));
   const [pasos, setPasos] = useState<WaPaso[]>(campana.pasos.length ? campana.pasos : [{ espera_horas: 0, mensajes: [""] }]);
@@ -76,16 +79,26 @@ export default function CampanaForm({ campana, contactos, etiquetas }: { campana
             <span className="mb-1 block text-muted">Nombre</span>
             <input name="nombre" required maxLength={120} defaultValue={campana.nombre} placeholder="Ej: Distribuidoras de Cuyo – octubre" className={campo} />
           </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted">Se envía a la etiqueta</span>
-            <input name="etiqueta" list="etiquetas-contactos" value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)}
-              maxLength={60} placeholder="Ej: distribuidoras" className={campo} />
-            <datalist id="etiquetas-contactos">
+          <div className="block text-sm">
+            <label htmlFor="etiqueta-destino" className="mb-1 block text-muted">Se envía a la etiqueta</label>
+            <select id="etiqueta-destino" className={campo}
+              value={otra ? OTRA : normEtiqueta(etiqueta)}
+              onChange={(e) => {
+                if (e.target.value === OTRA) { setOtra(true); setEtiqueta(""); }
+                else { setOtra(false); setEtiqueta(e.target.value); }
+              }}>
+              <option value="">— Ninguna (queda sin enviar) —</option>
               {etiquetas.map((e) => (
-                <option key={e.nombre} value={e.nombre}>{`${e.total} contactos`}</option>
+                <option key={e.nombre} value={e.nombre}>{`${e.nombre} (${e.total} ${e.total === 1 ? "contacto" : "contactos"})`}</option>
               ))}
-            </datalist>
-          </label>
+              <option value={OTRA}>Otra etiqueta…</option>
+            </select>
+            {otra && (
+              <input value={etiqueta} onChange={(e) => setEtiqueta(e.target.value)} maxLength={60} autoFocus
+                placeholder="Escribí la etiqueta, ej: distribuidoras" className={`${campo} mt-2`} />
+            )}
+            <input type="hidden" name="etiqueta" value={normEtiqueta(etiqueta)} />
+          </div>
           <label className="block text-sm">
             <span className="mb-1 block text-muted">Estado</span>
             <select name="estado" value={estado} onChange={(e) => setEstado(e.target.value)} className={campo}>
