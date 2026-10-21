@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { pb, pbJson, type List, type WaCampana, type WaPaso } from "@/lib/pb";
-import { MAX_MENSAJES_PASO, MAX_PASOS, MAX_TEXTO, escapar, normEtiqueta, pasosDe, variablesDesconocidas } from "@/lib/wa";
+import { MAX_FICHA, MAX_MENSAJES_PASO, MAX_PASOS, MAX_TEXTO, escapar, normEtiqueta, pasosDe, variablesDesconocidas } from "@/lib/wa";
 
 export type EstadoCampana = { error: string | null };
 
@@ -85,7 +85,7 @@ export async function guardarCampana(_: EstadoCampana, form: FormData): Promise<
   if (cierre === null) return { error: "La espera para cerrar son horas enteras (0 o más)." };
   if ("error" in leidos) return { error: leidos.error };
   if (modo !== "avisar" && modo !== "agente") return { error: "Elegí qué pasa cuando responden." };
-  if (ficha.length > 8000) return { error: "La ficha supera los 8000 caracteres." };
+  if (ficha.length > MAX_FICHA) return { error: `La ficha supera los ${MAX_FICHA} caracteres.` };
   if (modo === "agente" && !ficha) return { error: "Para que el agente responda, escribí la ficha de la campaña: sin ella no sabría qué contestar." };
   if (leidos.pasos.length === 0 && estado === "activa") return { error: "Para activar la campaña escribí al menos un mensaje en el paso 1." };
   if (estado === "activa") {

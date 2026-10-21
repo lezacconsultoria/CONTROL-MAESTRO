@@ -5,7 +5,7 @@ import { useActionState, useRef, useState } from "react";
 import { eliminarCampana, guardarCampana } from "../actions";
 import Cargando from "@/components/Cargando";
 import type { WaPaso } from "@/lib/pb";
-import { ESTADO_CAMPANA, MAX_MENSAJES_PASO, MAX_PASOS, MAX_TEXTO, VARIABLES, enlacesDe, normEtiqueta, partesConEnlaces, rellenar } from "@/lib/wa";
+import { ESTADO_CAMPANA, MAX_FICHA, MAX_MENSAJES_PASO, MAX_PASOS, MAX_TEXTO, VARIABLES, enlacesDe, normEtiqueta, partesConEnlaces, rellenar } from "@/lib/wa";
 
 /** Una etiqueta de Contactos: cuántos contactos la tienen y cuántos todavía no recibieron ninguna campaña. */
 export type EtiquetaInfo = { nombre: string; total: number; sinContactar: number };
@@ -56,6 +56,23 @@ export default function CampanaForm({ campana, contactos, etiquetas }: { campana
   const [estado, setEstado] = useState(campana.estado);
   const [modo, setModo] = useState(campana.modo_respuesta || "avisar");
   const [ficha, setFicha] = useState(campana.ficha);
+  const [avisoFicha, setAvisoFicha] = useState("");
+
+  // Carga un .md (o .txt) en el cuadro de la ficha, para revisarlo y ajustarlo antes de guardar.
+  const cargarArchivo = async (archivo: File | undefined) => {
+    setAvisoFicha("");
+    if (!archivo) return;
+    if (!/\.(md|markdown|txt)$/i.test(archivo.name)) return setAvisoFicha("El archivo tiene que ser .md, .markdown o .txt.");
+    if (archivo.size > 200 * 1024) return setAvisoFicha("El archivo es demasiado grande (máximo 200 KB).");
+    const texto = (await archivo.text()).replace(/^﻿/, "").replace(/\r\n/g, "\n").trim();
+    if (!texto) return setAvisoFicha("El archivo está vacío.");
+    if (texto.length > MAX_FICHA) {
+      return setAvisoFicha(`El archivo tiene ${texto.length.toLocaleString("es-AR")} caracteres y el máximo es ${MAX_FICHA.toLocaleString("es-AR")}. Resumilo o dividilo.`);
+    }
+    if (ficha.trim() && !window.confirm("La ficha ya tiene texto. ¿Reemplazarlo con el contenido del archivo?")) return;
+    setFicha(texto);
+    setAvisoFicha(`Cargado «${archivo.name}». Revisalo y, si está bien, guardá la campaña.`);
+  };
   const destino = etiquetas.find((e) => e.nombre === normEtiqueta(etiqueta));
   const [pasos, setPasos] = useState<WaPaso[]>(campana.pasos.length ? campana.pasos : [{ espera_horas: 0, mensajes: [""] }]);
   const areas = useRef<Record<string, HTMLTextAreaElement | null>>({});
@@ -266,16 +283,22 @@ export default function CampanaForm({ campana, contactos, etiquetas }: { campana
               <div className="mb-1 flex items-center justify-between text-xs">
                 <span className="text-muted">Ficha de la campaña: lo que el agente tiene que saber</span>
                 <span className="flex items-center gap-3">
+                  <label className="cursor-pointer text-accent hover:underline">
+                    Cargar un archivo .md
+                    <input type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" className="sr-only"
+                      onChange={(e) => { void cargarArchivo(e.target.files?.[0]); e.target.value = ""; }} />
+                  </label>
                   {!ficha.trim() && (
                     <button type="button" onClick={() => setFicha(PLANTILLA_FICHA)} className="text-accent hover:underline">Usar una plantilla</button>
                   )}
-                  <span className={ficha.length > 8000 ? "text-red-400" : "text-muted"}>{ficha.length}/8000</span>
+                  <span className={ficha.length > MAX_FICHA ? "text-red-400" : "text-muted"}>{ficha.length.toLocaleString("es-AR")}/{MAX_FICHA.toLocaleString("es-AR")}</span>
                 </span>
               </div>
+              {avisoFicha && <p className={`mb-1 text-xs ${avisoFicha.startsWith("Cargado") ? "text-[#25f5a4]" : "text-red-400"}`}>{avisoFicha}</p>}
               <textarea
                 name="ficha"
                 rows={12}
-                maxLength={8000}
+                maxLength={MAX_FICHA}
                 value={ficha}
                 onChange={(e) => setFicha(e.target.value)}
                 placeholder="Contale al agente de qué trata la campaña, qué querés lograr y qué puede y no puede decir. Solo va a usar lo que escribas acá."

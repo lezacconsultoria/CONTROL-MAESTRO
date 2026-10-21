@@ -67,6 +67,7 @@ export const normEtiqueta = (s: string) => s.trim().toLowerCase();
 export const MAX_PASOS = 6;
 export const MAX_MENSAJES_PASO = 4;
 export const MAX_TEXTO = 1000;
+export const MAX_FICHA = 20000;
 
 /** Pasos de una campaña (acepta el formato anterior de 3 mensajes fijos). Se descartan los mensajes vacíos. */
 export function pasosDe(c: {
