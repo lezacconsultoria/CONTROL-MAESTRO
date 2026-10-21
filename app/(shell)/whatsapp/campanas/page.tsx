@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { pbTodos, type WaCampana } from "@/lib/pb";
-import { ESTADO_CAMPANA } from "@/lib/wa";
+import { ESTADO_CAMPANA, pasosDe } from "@/lib/wa";
 import { cambiarEstadoCampana } from "./actions";
 
 const fmt = new Intl.NumberFormat("es-AR");
@@ -36,7 +36,7 @@ export default async function Campanas() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold">Campañas</h1>
-          <p className="mt-1 text-sm text-muted">Cada campaña es una secuencia fija de hasta 3 mensajes.</p>
+          <p className="mt-1 text-sm text-muted">Cada campaña es una secuencia de pasos; cada paso puede tener varios mensajes seguidos.</p>
         </div>
         <Link href="/whatsapp/campanas/nueva" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white">
           + Nueva campaña
@@ -52,6 +52,8 @@ export default async function Campanas() {
           {campanas.map((c) => {
             const e = ESTADO_CAMPANA[c.estado] ?? { nombre: c.estado, clase: "bg-surface-2" };
             const n = porCampana.get(c.id) ?? { total: 0, enSecuencia: 0, respondieron: 0 };
+            const pasos = pasosDe(c);
+            const globos = pasos.reduce((suma, p) => suma + p.mensajes.length, 0);
             return (
               <article key={c.id} className="rounded-lg border border-line bg-surface p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -62,13 +64,14 @@ export default async function Campanas() {
                   <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${e.clase}`}>{e.nombre}</span>
                 </div>
                 <p className="mt-3 line-clamp-3 whitespace-pre-line rounded-md bg-surface-2 p-3 text-xs">
-                  {c.mensaje_1 || <span className="text-muted">Sin mensaje 1 todavía.</span>}
+                  {pasos[0]?.mensajes[0] || <span className="text-muted">Sin mensajes todavía.</span>}
                 </p>
                 <p className="mt-3 text-xs text-muted">
                   {fmt.format(n.total)} contactos · {fmt.format(n.enSecuencia)} en secuencia · {fmt.format(n.respondieron)} respondieron
                 </p>
                 <p className="mt-1 text-xs text-muted">
-                  Mensajes: {[c.mensaje_1, c.mensaje_2, c.mensaje_3].filter(Boolean).length}/3 · espera {c.espera_horas_2} h y {c.espera_horas_3} h · cierre a las {c.espera_cierre_horas} h
+                  {pasos.length} {pasos.length === 1 ? "paso" : "pasos"} ({globos} {globos === 1 ? "mensaje" : "mensajes"})
+                  {pasos.length > 1 && ` · esperas de ${pasos.slice(1).map((p) => `${p.espera_horas} h`).join(", ")}`} · cierre a las {c.espera_cierre_horas} h
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <Link href={`/whatsapp/campanas/${c.id}`} className="rounded-md bg-surface-2 px-3 py-1.5 text-xs font-semibold hover:text-accent">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { pb, pbTodos, type List, type WaCampana, type WaContacto } from "@/lib/pb";
-import { ESTADO_CONTACTO, escapar, fechaHora, verTelefono } from "@/lib/wa";
+import { ESTADO_CONTACTO, escapar, fechaHora, pasosDe, verTelefono } from "@/lib/wa";
 import BotonAgente from "../BotonAgente";
 import ImportarContactos from "./ImportarContactos";
 import { marcarNoContactar, reactivarContacto } from "./actions";
@@ -114,7 +114,7 @@ export default async function Contactos({
                   <td className="px-3 py-2 text-xs text-muted">{c.etiqueta || "—"}</td>
                   <td className="px-3 py-2 text-xs text-muted">{c.expand?.campana?.nombre ?? "—"}</td>
                   <td className="px-3 py-2"><span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${e.clase}`}>{e.nombre}</span></td>
-                  <td className="px-3 py-2 text-xs">{c.paso}/3</td>
+                  <td className="px-3 py-2 text-xs">{c.expand?.campana ? `${c.paso}/${pasosDe(c.expand.campana).length}` : c.paso || "—"}</td>
                   <td className="px-3 py-2 text-xs text-muted">{fechaHora(c.proximo_envio) || "—"}</td>
                   <td className="px-3 py-2"><BotonAgente id={c.id} activo={c.agente_activo} /></td>
                   <td className="px-3 py-2 text-right">

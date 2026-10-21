@@ -90,11 +90,16 @@ export type WaConfig = {
   updated: string;
 };
 
+// Un paso de la campaña: se envían sus mensajes uno detrás del otro. espera_horas se ignora en el primero.
+export type WaPaso = { espera_horas: number; mensajes: string[] };
+
 export type WaCampana = {
   id: string;
   nombre: string;
   etiqueta: string;
   estado: "borrador" | "activa" | "pausada" | "terminada";
+  pasos: WaPaso[] | null;
+  // Formato anterior (3 mensajes fijos): solo se lee si la campaña no tiene `pasos`.
   mensaje_1: string;
   mensaje_2: string;
   mensaje_3: string;
@@ -114,7 +119,7 @@ export type WaContacto = {
   origen: string;
   campana: string;
   estado: "nuevo" | "en_secuencia" | "respondio" | "sin_respuesta" | "no_contactar" | "entrante";
-  paso: number; // 0-3
+  paso: number; // cantidad de pasos ya enviados (0 = ninguno)
   proximo_envio: string;
   agente_activo: boolean;
   ultimo_mensaje: string;

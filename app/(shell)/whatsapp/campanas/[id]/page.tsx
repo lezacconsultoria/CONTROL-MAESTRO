@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { pb, type List, type WaCampana } from "@/lib/pb";
+import { pasosDe } from "@/lib/wa";
 import CampanaForm, { type CampanaEditable } from "./CampanaForm";
 
 const NUEVA: CampanaEditable = {
@@ -7,11 +8,7 @@ const NUEVA: CampanaEditable = {
   nombre: "",
   etiqueta: "",
   estado: "borrador",
-  mensaje_1: "",
-  mensaje_2: "",
-  mensaje_3: "",
-  espera_horas_2: 24,
-  espera_horas_3: 48,
+  pasos: [{ espera_horas: 0, mensajes: [""] }],
   espera_cierre_horas: 72,
 };
 
@@ -27,7 +24,15 @@ export default async function CampanaPagina({ params }: { params: Promise<{ id: 
       pb<List<{ id: string }>>(`collections/wa_contactos/records?perPage=1&filter=${encodeURIComponent(`campana="${id}"`)}`),
     ]);
     if (!c) notFound();
-    campana = { ...c };
+    const pasos = pasosDe(c);
+    campana = {
+      id: c.id,
+      nombre: c.nombre,
+      etiqueta: c.etiqueta,
+      estado: c.estado,
+      pasos: pasos.length ? pasos : NUEVA.pasos,
+      espera_cierre_horas: c.espera_cierre_horas,
+    };
     contactos = usados.totalItems;
   }
 
