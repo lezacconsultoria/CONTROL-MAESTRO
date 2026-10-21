@@ -99,6 +99,8 @@ export type WaCampana = {
   etiqueta: string;
   estado: "borrador" | "activa" | "pausada" | "terminada";
   pasos: WaPaso[] | null;
+  modo_respuesta: "" | "avisar" | "agente"; // qué pasa cuando un contacto responde: solo avisar a Leandro, o contesta el agente
+  ficha: string; // lo que el agente tiene que saber para contestar esta campaña
   // Formato anterior (3 mensajes fijos): solo se lee si la campaña no tiene `pasos`.
   mensaje_1: string;
   mensaje_2: string;

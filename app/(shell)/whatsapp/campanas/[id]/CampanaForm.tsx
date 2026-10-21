@@ -17,7 +17,29 @@ export type CampanaEditable = {
   estado: string;
   pasos: WaPaso[];
   espera_cierre_horas: number;
+  modo_respuesta: string;
+  ficha: string;
 };
+
+const PLANTILLA_FICHA = `Qué ofrecemos:
+
+
+A quién va dirigido:
+
+
+Objetivo de la conversación (ej: agendar una reunión de 15 minutos):
+
+
+Preguntas frecuentes y cómo responderlas:
+-
+
+
+Enlaces que podés mandar:
+-
+
+
+Qué NO podés decir ni prometer (precios, plazos, descuentos, resultados):
+- `;
 
 const campo =
   "w-full rounded-md border border-line bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent";
@@ -32,6 +54,8 @@ export default function CampanaForm({ campana, contactos, etiquetas }: { campana
   // Si la campaña ya tiene una etiqueta que todavía no existe en Contactos, se muestra como «Otra».
   const [otra, setOtra] = useState(!!campana.etiqueta && !etiquetas.some((e) => e.nombre === normEtiqueta(campana.etiqueta)));
   const [estado, setEstado] = useState(campana.estado);
+  const [modo, setModo] = useState(campana.modo_respuesta || "avisar");
+  const [ficha, setFicha] = useState(campana.ficha);
   const destino = etiquetas.find((e) => e.nombre === normEtiqueta(etiqueta));
   const [pasos, setPasos] = useState<WaPaso[]>(campana.pasos.length ? campana.pasos : [{ espera_horas: 0, mensajes: [""] }]);
   const areas = useRef<Record<string, HTMLTextAreaElement | null>>({});
@@ -218,6 +242,52 @@ export default function CampanaForm({ campana, contactos, etiquetas }: { campana
           <input type="number" name="espera_cierre_horas" min={0} max={1440} defaultValue={campana.espera_cierre_horas} className={campoHoras} />
           horas después del último paso
         </label>
+
+        <div className="rounded-lg border border-line bg-surface p-4">
+          <h2 className="font-semibold">Si responden</h2>
+          <p className="mt-1 text-xs text-muted">Qué pasa cuando un contacto contesta a esta campaña. En los dos casos se frena la secuencia y te llega el aviso.</p>
+
+          <div className="mt-3 space-y-2 text-sm">
+            <label className="flex items-start gap-2">
+              <input type="radio" name="modo_respuesta" value="avisar" checked={modo === "avisar"} onChange={() => setModo("avisar")} className="mt-1" />
+              <span><b>Solo avisarme.</b> <span className="text-muted">El agente no contesta: seguís vos desde Chats o desde el celular.</span></span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input type="radio" name="modo_respuesta" value="agente" checked={modo === "agente"} onChange={() => setModo("agente")} className="mt-1" />
+              <span><b>Responde el agente y me avisa.</b> <span className="text-muted">Contesta usando la ficha de abajo. Te pasa la conversación cuando no sabe qué decir, piden precio o condiciones, quieren hablar con una persona o hay un reclamo.</span></span>
+            </label>
+          </div>
+
+          {/* En «solo avisarme» la ficha no se ve, pero se conserva por si más adelante se vuelve a activar el agente. */}
+          {modo !== "agente" && <input type="hidden" name="ficha" value={ficha} />}
+
+          {modo === "agente" && (
+            <div className="mt-4">
+              <div className="mb-1 flex items-center justify-between text-xs">
+                <span className="text-muted">Ficha de la campaña: lo que el agente tiene que saber</span>
+                <span className="flex items-center gap-3">
+                  {!ficha.trim() && (
+                    <button type="button" onClick={() => setFicha(PLANTILLA_FICHA)} className="text-accent hover:underline">Usar una plantilla</button>
+                  )}
+                  <span className={ficha.length > 8000 ? "text-red-400" : "text-muted"}>{ficha.length}/8000</span>
+                </span>
+              </div>
+              <textarea
+                name="ficha"
+                rows={12}
+                maxLength={8000}
+                value={ficha}
+                onChange={(e) => setFicha(e.target.value)}
+                placeholder="Contale al agente de qué trata la campaña, qué querés lograr y qué puede y no puede decir. Solo va a usar lo que escribas acá."
+                className={campo}
+              />
+              <p className="mt-1 text-[11px] text-muted">
+                El agente solo responde con lo que está en la ficha y en sus instrucciones generales. Si algo no está acá, te pasa la conversación.
+                Un enlace escrito completo (https://…) sale clickeable.
+              </p>
+            </div>
+          )}
+        </div>
 
         {res.error && <p className="text-sm text-red-400">{res.error}</p>}
         {pending && <Cargando texto="Guardando la campaña…" />}

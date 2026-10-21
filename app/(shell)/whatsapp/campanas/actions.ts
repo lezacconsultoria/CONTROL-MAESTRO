@@ -76,12 +76,17 @@ export async function guardarCampana(_: EstadoCampana, form: FormData): Promise<
   const estado = String(form.get("estado") ?? "borrador");
   const cierre = horas(form.get("espera_cierre_horas"));
   const leidos = leerPasos(form.get("pasos"));
+  const modo = String(form.get("modo_respuesta") ?? "avisar");
+  const ficha = String(form.get("ficha") ?? "").trim();
 
   if (!nombre) return { error: "Poné un nombre para la campaña." };
   if (nombre.length > 120) return { error: "El nombre es demasiado largo." };
   if (!ESTADOS.includes(estado)) return { error: "Estado inválido." };
   if (cierre === null) return { error: "La espera para cerrar son horas enteras (0 o más)." };
   if ("error" in leidos) return { error: leidos.error };
+  if (modo !== "avisar" && modo !== "agente") return { error: "Elegí qué pasa cuando responden." };
+  if (ficha.length > 8000) return { error: "La ficha supera los 8000 caracteres." };
+  if (modo === "agente" && !ficha) return { error: "Para que el agente responda, escribí la ficha de la campaña: sin ella no sabría qué contestar." };
   if (leidos.pasos.length === 0 && estado === "activa") return { error: "Para activar la campaña escribí al menos un mensaje en el paso 1." };
   if (estado === "activa") {
     const problema = await problemaDeActivacion(id, etiqueta);
@@ -94,6 +99,8 @@ export async function guardarCampana(_: EstadoCampana, form: FormData): Promise<
     etiqueta,
     estado,
     pasos: leidos.pasos,
+    modo_respuesta: modo,
+    ficha,
     mensaje_1: "",
     mensaje_2: "",
     mensaje_3: "",

@@ -83,6 +83,10 @@ export default async function Campanas() {
                   {pasos.length} {pasos.length === 1 ? "paso" : "pasos"} ({globos} {globos === 1 ? "mensaje" : "mensajes"})
                   {pasos.length > 1 && ` · esperas de ${pasos.slice(1).map((p) => `${p.espera_horas} h`).join(", ")}`} · cierre a las {c.espera_cierre_horas} h
                 </p>
+                <p className="mt-1 text-xs text-muted">
+                  Si responden:{" "}
+                  {c.modo_respuesta === "agente" ? <span className="text-[#25f5a4]">contesta el agente y te avisa</span> : "solo te avisa"}
+                </p>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <Link href={`/whatsapp/campanas/${c.id}`} className="rounded-md bg-surface-2 px-3 py-1.5 text-xs font-semibold hover:text-accent">
                     Editar

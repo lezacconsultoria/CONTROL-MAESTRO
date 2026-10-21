@@ -10,6 +10,8 @@ const NUEVA: CampanaEditable = {
   estado: "borrador",
   pasos: [{ espera_horas: 0, mensajes: [""] }],
   espera_cierre_horas: 72,
+  modo_respuesta: "avisar",
+  ficha: "",
 };
 
 export default async function CampanaPagina({ params }: { params: Promise<{ id: string }> }) {
@@ -32,6 +34,8 @@ export default async function CampanaPagina({ params }: { params: Promise<{ id: 
       estado: c.estado,
       pasos: pasos.length ? pasos : NUEVA.pasos,
       espera_cierre_horas: c.espera_cierre_horas,
+      modo_respuesta: c.modo_respuesta || "avisar",
+      ficha: c.ficha ?? "",
     };
     contactos = usados.totalItems;
   }
