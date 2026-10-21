@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { pb, pbTodos, type List, type WaCampana, type WaContacto } from "@/lib/pb";
-import { ESTADO_CONTACTO, escapar, fechaHora, pasosDe, verTelefono } from "@/lib/wa";
+import { ESTADO_CONTACTO, escapar, fechaHora, normEtiqueta, pasosDe, verTelefono } from "@/lib/wa";
 import BotonAgente from "../BotonAgente";
+import AccionesMasivas, { SeleccionarTodos } from "./AccionesMasivas";
+import EtiquetaCelda from "./EtiquetaCelda";
 import ImportarContactos from "./ImportarContactos";
 import { marcarNoContactar, reactivarContacto } from "./actions";
 
@@ -35,7 +37,7 @@ export default async function Contactos({
   ]);
 
   const porEstado = resumen.reduce<Record<string, number>>((a, c) => ((a[c.estado] = (a[c.estado] ?? 0) + 1), a), {});
-  const etiquetas = [...new Set(resumen.map((c) => c.etiqueta).filter(Boolean))].sort();
+  const etiquetas = [...new Set(resumen.map((c) => normEtiqueta(c.etiqueta)).filter(Boolean))].sort();
 
   const enlace = (cambios: Record<string, string>) => {
     const p = new URLSearchParams();
@@ -84,10 +86,13 @@ export default async function Contactos({
         {hayFiltros && <Link href="?" className="text-sm text-muted hover:text-ink">Limpiar</Link>}
       </form>
 
+      <AccionesMasivas etiquetas={etiquetas} />
+
       <div className="mt-4 overflow-x-auto rounded-lg border border-line">
         <table className="w-full min-w-[960px] text-sm">
           <thead className="bg-surface text-left text-xs uppercase tracking-wide text-muted">
             <tr>
+              <th className="w-8 px-3 py-2"><SeleccionarTodos /></th>
               <th className="px-3 py-2">Contacto</th>
               <th className="px-3 py-2">Teléfono</th>
               <th className="px-3 py-2">Alta</th>
@@ -106,12 +111,15 @@ export default async function Contactos({
               return (
                 <tr key={c.id} className="bg-bg">
                   <td className="px-3 py-2">
+                    <input type="checkbox" name="ids" value={c.id} form="masivo" aria-label={`Marcar a ${c.nombre || c.telefono}`} />
+                  </td>
+                  <td className="px-3 py-2">
                     <Link href={`/whatsapp/chats?c=${c.id}`} className="font-semibold hover:text-accent">{c.nombre || "Sin nombre"}</Link>
                     <div className="text-xs text-muted">{c.empresa}</div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-xs">{verTelefono(c.telefono)}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">{fechaHora(c.created) || "—"}</td>
-                  <td className="px-3 py-2 text-xs text-muted">{c.etiqueta || "—"}</td>
+                  <td className="px-3 py-2"><EtiquetaCelda id={c.id} actual={normEtiqueta(c.etiqueta)} etiquetas={etiquetas} /></td>
                   <td className="px-3 py-2 text-xs text-muted">{c.expand?.campana?.nombre ?? "—"}</td>
                   <td className="px-3 py-2"><span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${e.clase}`}>{e.nombre}</span></td>
                   <td className="px-3 py-2 text-xs">{c.expand?.campana ? `${c.paso}/${pasosDe(c.expand.campana).length}` : c.paso || "—"}</td>
@@ -135,7 +143,7 @@ export default async function Contactos({
             })}
             {lista.items.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-10 text-center text-sm text-muted">
+                <td colSpan={11} className="px-3 py-10 text-center text-sm text-muted">
                   {hayFiltros ? "Ningún contacto coincide con los filtros." : "Todavía no hay contactos. Importá un Excel para empezar."}
                 </td>
               </tr>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { pbJson } from "@/lib/pb";
 import { apiPb } from "@/lib/pb-api";
+import { enParalelo } from "@/lib/linkedin-sync";
 import { normEtiqueta } from "@/lib/wa";
 import { guardarContactos, leerContactos } from "@/lib/whatsapp-import";
 
@@ -55,6 +56,23 @@ function idDe(form: FormData) {
 export async function cambiarAgente(form: FormData) {
   const id = idDe(form);
   await pbJson("PATCH", `collections/wa_contactos/records/${id}`, { agente_activo: form.get("activo") === "1" });
+  revalidatePath("/whatsapp", "layout");
+}
+
+const etiquetaDe = (form: FormData) => normEtiqueta(String(form.get("etiqueta") ?? "").slice(0, 60));
+
+export async function cambiarEtiqueta(form: FormData) {
+  const id = idDe(form);
+  await pbJson("PATCH", `collections/wa_contactos/records/${id}`, { etiqueta: etiquetaDe(form) });
+  revalidatePath("/whatsapp", "layout");
+}
+
+export async function ponerEtiquetaVarios(form: FormData) {
+  const ids = [...new Set(form.getAll("ids").map(String))];
+  if (!ids.length) throw new Error("Marcá al menos un contacto en la tabla.");
+  if (ids.length > 500 || ids.some((i) => !ID.test(i))) throw new Error("La selección no es válida.");
+  const etiqueta = etiquetaDe(form);
+  await enParalelo(ids, 6, (id) => pbJson("PATCH", `collections/wa_contactos/records/${id}`, { etiqueta }));
   revalidatePath("/whatsapp", "layout");
 }
 
