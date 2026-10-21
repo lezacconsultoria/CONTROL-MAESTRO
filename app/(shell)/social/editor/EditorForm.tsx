@@ -178,26 +178,6 @@ export default function EditorForm({
           </select>
         </label>
 
-        <label className="block text-sm">
-          <span className="mb-1 flex justify-between text-muted">
-            Caption <span className={total > limite ? "text-red-400" : ""}>{total}/{limite}</span>
-          </span>
-          <textarea name="caption" rows={9} value={caption} disabled={bloqueado}
-            onChange={(e) => setCaption(e.target.value)} className={campo} />
-        </label>
-
-        <div className="block text-sm">
-          <span className="mb-1 block text-muted">Hashtags{esLinkedin ? "" : " (máx. 30)"}</span>
-          <CampoHistorial name="hashtags" value={hashtags} onChange={setHashtags} opciones={historial.hashtags}
-            disabled={bloqueado} placeholder="#ventas #distribuidoras" className={campo} />
-        </div>
-
-        <div className="block text-sm">
-          <span className="mb-1 block text-muted">Pilar / serie (opcional)</span>
-          <CampoHistorial name="pilar" value={pilar} onChange={setPilar} opciones={historial.pilar}
-            disabled={bloqueado} placeholder="Ej: Brújula Comercial, casos de éxito" className={campo} />
-        </div>
-
         {conArchivos && (
           <div className="text-sm">
             <span className="mb-1 block text-muted">
@@ -349,6 +329,26 @@ export default function EditorForm({
             {errTapa && <p className="mt-2 text-xs text-red-400">{errTapa}</p>}
           </div>
         )}
+
+        <label className="block text-sm">
+          <span className="mb-1 flex justify-between text-muted">
+            Caption <span className={total > limite ? "text-red-400" : ""}>{total}/{limite}</span>
+          </span>
+          <textarea name="caption" rows={9} value={caption} disabled={bloqueado}
+            onChange={(e) => setCaption(e.target.value)} className={campo} />
+        </label>
+
+        <div className="block text-sm">
+          <span className="mb-1 block text-muted">Hashtags{esLinkedin ? "" : " (máx. 30)"}</span>
+          <CampoHistorial name="hashtags" value={hashtags} onChange={setHashtags} opciones={historial.hashtags}
+            disabled={bloqueado} placeholder="#ventas #distribuidoras" className={campo} />
+        </div>
+
+        <div className="block text-sm">
+          <span className="mb-1 block text-muted">Pilar / serie (opcional)</span>
+          <CampoHistorial name="pilar" value={pilar} onChange={setPilar} opciones={historial.pilar}
+            disabled={bloqueado} placeholder="Ej: Brújula Comercial, casos de éxito" className={campo} />
+        </div>
 
         <label className="block text-sm">
           <span className="mb-1 block text-muted">Fecha y hora de publicación (Argentina)</span>
