@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { pb, type List, type WaContacto, type WaMensaje } from "@/lib/pb";
 import { diaAR, horaAR } from "@/lib/fecha";
 import { AUTOR, ESTADO_CONTACTO, escapar, fechaHora, verTelefono } from "@/lib/wa";
@@ -58,7 +57,9 @@ export default async function Chats({ searchParams }: { searchParams: Promise<{ 
               const e = ESTADO_CONTACTO[c.estado];
               return (
                 <li key={c.id}>
-                  <Link href={href(c.id)} className={`block px-3 py-2.5 hover:bg-surface-2 ${c.id === elegido ? "bg-surface-2" : ""}`}>
+                  {/* <a> y no <Link>: cada chat se abre con una carga completa. Con la navegación del cliente quedaba
+                      el historial del chat anterior apilado sobre el nuevo. */}
+                  <a href={href(c.id)} className={`block px-3 py-2.5 hover:bg-surface-2 ${c.id === elegido ? "bg-surface-2" : ""}`}>
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="truncate text-sm font-semibold">{c.nombre || verTelefono(c.telefono)}</span>
                       <span className="shrink-0 text-[10px] text-muted">{fechaHora(c.ultimo_mensaje)}</span>
@@ -67,7 +68,7 @@ export default async function Chats({ searchParams }: { searchParams: Promise<{ 
                       {m ? `${m.direccion === "out" ? "Vos: " : ""}${m.texto}` : c.empresa}
                     </p>
                     <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${e?.clase ?? ""}`}>{e?.nombre ?? c.estado}</span>
-                  </Link>
+                  </a>
                 </li>
               );
             })}
