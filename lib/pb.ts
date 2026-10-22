@@ -118,6 +118,7 @@ export type WaContacto = {
   nombre: string;
   empresa: string;
   etiqueta: string;
+  etiquetas_wa: string; // etiquetas de WhatsApp Business, «|clientes|campaña1|»: las sincroniza el motor, no se editan acá
   origen: string;
   campana: string;
   estado: "nuevo" | "en_secuencia" | "respondio" | "sin_respuesta" | "no_contactar" | "entrante";

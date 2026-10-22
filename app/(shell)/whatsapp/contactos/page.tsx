@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { pb, pbTodos, type List, type WaCampana, type WaContacto } from "@/lib/pb";
-import { ESTADO_CONTACTO, escapar, fechaHora, normEtiqueta, pasosDe, verTelefono } from "@/lib/wa";
+import { ESTADO_CONTACTO, escapar, etiquetasDe, etiquetasWa, fechaHora, normEtiqueta, pasosDe, verTelefono } from "@/lib/wa";
 import BotonAgente from "../BotonAgente";
 import AccionesMasivas, { SeleccionarTodos } from "./AccionesMasivas";
 import EtiquetaCelda from "./EtiquetaCelda";
@@ -22,7 +22,7 @@ export default async function Contactos({
 
   const filtros: string[] = [];
   if (q) filtros.push(`(nombre~"${escapar(q)}" || empresa~"${escapar(q)}" || telefono~"${escapar(q.replace(/\D/g, "") || q)}")`);
-  if (sp.etiqueta) filtros.push(`etiqueta="${escapar(sp.etiqueta)}"`);
+  if (sp.etiqueta) filtros.push(`(etiqueta="${escapar(sp.etiqueta)}" || etiquetas_wa~"|${escapar(sp.etiqueta)}|")`);
   if (sp.estado && sp.estado in ESTADO_CONTACTO) filtros.push(`estado="${sp.estado}"`);
   if (sp.campana && /^[a-z0-9]{15}$/.test(sp.campana)) filtros.push(`campana="${sp.campana}"`);
 
@@ -32,12 +32,12 @@ export default async function Contactos({
         filtros.length ? `&filter=${encodeURIComponent(filtros.join(" && "))}` : ""
       }`,
     ),
-    pbTodos<{ estado: string; etiqueta: string }>("wa_contactos", "", "", "estado,etiqueta"),
+    pbTodos<{ estado: string; etiqueta: string; etiquetas_wa: string }>("wa_contactos", "", "", "estado,etiqueta,etiquetas_wa"),
     pbTodos<WaCampana>("wa_campanas", "", "nombre", "id,nombre"),
   ]);
 
   const porEstado = resumen.reduce<Record<string, number>>((a, c) => ((a[c.estado] = (a[c.estado] ?? 0) + 1), a), {});
-  const etiquetas = [...new Set(resumen.map((c) => normEtiqueta(c.etiqueta)).filter(Boolean))].sort();
+  const etiquetas = [...new Set(resumen.flatMap(etiquetasDe))].sort();
 
   const enlace = (cambios: Record<string, string>) => {
     const p = new URLSearchParams();
@@ -119,7 +119,19 @@ export default async function Contactos({
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-xs">{verTelefono(c.telefono)}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">{fechaHora(c.created) || "—"}</td>
-                  <td className="px-3 py-2"><EtiquetaCelda id={c.id} actual={normEtiqueta(c.etiqueta)} etiquetas={etiquetas} /></td>
+                  <td className="px-3 py-2">
+                    <EtiquetaCelda id={c.id} actual={normEtiqueta(c.etiqueta)} etiquetas={etiquetas} />
+                    {etiquetasWa(c).length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {etiquetasWa(c).map((e) => (
+                          <span key={e} title="Etiqueta de WhatsApp: se cambia desde WhatsApp Business"
+                            className="rounded-full bg-[#25f5a4]/15 px-2 py-0.5 text-[10px] font-semibold text-[#25f5a4]">
+                            {e}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-xs text-muted">{c.expand?.campana?.nombre ?? "—"}</td>
                   <td className="px-3 py-2"><span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${e.clase}`}>{e.nombre}</span></td>
                   <td className="px-3 py-2 text-xs">{c.expand?.campana ? `${c.paso}/${pasosDe(c.expand.campana).length}` : c.paso || "—"}</td>

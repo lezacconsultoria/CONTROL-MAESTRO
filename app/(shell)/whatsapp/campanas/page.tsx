@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { pbTodos, type WaCampana } from "@/lib/pb";
-import { ESTADO_CAMPANA, normEtiqueta, pasosDe } from "@/lib/wa";
+import { ESTADO_CAMPANA, etiquetasDe, normEtiqueta, pasosDe } from "@/lib/wa";
 import { cambiarEstadoCampana } from "./actions";
 
 const fmt = new Intl.NumberFormat("es-AR");
@@ -20,12 +20,14 @@ function BotonEstado({ id, estado, texto, peligro }: { id: string; estado: strin
 export default async function Campanas() {
   const [campanas, contactos] = await Promise.all([
     pbTodos<WaCampana>("wa_campanas", "", "-created"),
-    pbTodos<{ campana: string; estado: string; etiqueta: string }>("wa_contactos", "", "", "campana,estado,etiqueta"),
+    pbTodos<{ campana: string; estado: string; etiqueta: string; etiquetas_wa: string }>("wa_contactos", "", "", "campana,estado,etiqueta,etiquetas_wa"),
   ]);
-  // Contactos que todavía no recibieron ninguna campaña, por etiqueta: a esos les va a llegar la campaña con esa etiqueta.
+  // Contactos que todavía no recibieron ninguna campaña, por etiqueta (manual o de WhatsApp): a esos les va a llegar la campaña con esa etiqueta.
+  // Un contacto con varias etiquetas cuenta en cada una.
   const sinContactar = new Map<string, number>();
   for (const c of contactos) {
-    if (c.estado === "nuevo" && !c.campana && c.etiqueta) sinContactar.set(normEtiqueta(c.etiqueta), (sinContactar.get(normEtiqueta(c.etiqueta)) ?? 0) + 1);
+    if (c.estado !== "nuevo" || c.campana) continue;
+    for (const e of etiquetasDe(c)) sinContactar.set(e, (sinContactar.get(e) ?? 0) + 1);
   }
   const porCampana = new Map<string, { total: number; enSecuencia: number; respondieron: number }>();
   for (const c of contactos) {

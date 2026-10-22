@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { pb, pbTodos, type List, type WaCampana } from "@/lib/pb";
-import { normEtiqueta, pasosDe } from "@/lib/wa";
+import { etiquetasDe, pasosDe } from "@/lib/wa";
 import CampanaForm, { type CampanaEditable, type EtiquetaInfo } from "./CampanaForm";
 
 const NUEVA: CampanaEditable = {
@@ -42,14 +42,18 @@ export default async function CampanaPagina({ params }: { params: Promise<{ id: 
 
   // Etiquetas que existen en Contactos: cuántos contactos hay con cada una y cuántos todavía no se contactaron
   // (los que esta campaña, si está activa, va a encontrar).
-  const filas = await pbTodos<{ etiqueta: string; estado: string; campana: string }>("wa_contactos", 'etiqueta!=""', "", "etiqueta,estado,campana");
+  const filas = await pbTodos<{ etiqueta: string; etiquetas_wa: string; estado: string; campana: string }>(
+    "wa_contactos", 'etiqueta!="" || etiquetas_wa!=""', "", "etiqueta,etiquetas_wa,estado,campana",
+  );
   const porEtiqueta = new Map<string, EtiquetaInfo>();
   for (const f of filas) {
-    const nombre = normEtiqueta(f.etiqueta);
-    const x = porEtiqueta.get(nombre) ?? { nombre, total: 0, sinContactar: 0 };
-    x.total++;
-    if (f.estado === "nuevo" && (!f.campana || f.campana === campana.id)) x.sinContactar++;
-    porEtiqueta.set(nombre, x);
+    // Un contacto con varias etiquetas cuenta en cada una.
+    for (const nombre of etiquetasDe(f)) {
+      const x = porEtiqueta.get(nombre) ?? { nombre, total: 0, sinContactar: 0 };
+      x.total++;
+      if (f.estado === "nuevo" && (!f.campana || f.campana === campana.id)) x.sinContactar++;
+      porEtiqueta.set(nombre, x);
+    }
   }
   const etiquetas = [...porEtiqueta.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
 

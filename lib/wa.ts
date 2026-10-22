@@ -64,6 +64,13 @@ export function verTelefono(t: string) {
 /** Las etiquetas se guardan en minúscula y sin espacios sobrantes, así «Distribuidoras» y «distribuidoras» son la misma. */
 export const normEtiqueta = (s: string) => s.trim().toLowerCase();
 
+/** Etiquetas de WhatsApp de un contacto (el campo viene como «|a|b|»). */
+export const etiquetasWa = (c: { etiquetas_wa?: string }) => (c.etiquetas_wa ?? "").split("|").map(normEtiqueta).filter(Boolean);
+
+/** Todas las etiquetas de un contacto: la manual y las de WhatsApp, sin repetir. Una campaña le llega si tiene la suya en cualquiera. */
+export const etiquetasDe = (c: { etiqueta?: string; etiquetas_wa?: string }) =>
+  [...new Set([normEtiqueta(c.etiqueta ?? ""), ...etiquetasWa(c)].filter(Boolean))];
+
 export const MAX_PASOS = 6;
 export const MAX_MENSAJES_PASO = 4;
 export const MAX_TEXTO = 1000;
