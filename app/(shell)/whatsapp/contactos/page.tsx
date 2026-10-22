@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { pb, pbTodos, type List, type WaCampana, type WaContacto } from "@/lib/pb";
+import { pb, pbTodos, type List, type WaCampana, type WaConfig, type WaContacto } from "@/lib/pb";
 import { ESTADO_CONTACTO, escapar, etiquetasDe, etiquetasWa, fechaHora, normEtiqueta, pasosDe, verTelefono } from "@/lib/wa";
 import BotonAgente from "../BotonAgente";
 import AccionesMasivas, { SeleccionarTodos } from "./AccionesMasivas";
@@ -26,7 +26,7 @@ export default async function Contactos({
   if (sp.estado && sp.estado in ESTADO_CONTACTO) filtros.push(`estado="${sp.estado}"`);
   if (sp.campana && /^[a-z0-9]{15}$/.test(sp.campana)) filtros.push(`campana="${sp.campana}"`);
 
-  const [lista, resumen, campanas] = await Promise.all([
+  const [lista, resumen, campanas, config] = await Promise.all([
     pb<List<WaContacto> & { totalPages: number }>(
       `collections/wa_contactos/records?perPage=${POR_PAGINA}&page=${pagina}&sort=-created&expand=campana${
         filtros.length ? `&filter=${encodeURIComponent(filtros.join(" && "))}` : ""
@@ -34,10 +34,11 @@ export default async function Contactos({
     ),
     pbTodos<{ estado: string; etiqueta: string; etiquetas_wa: string }>("wa_contactos", "", "", "estado,etiqueta,etiquetas_wa"),
     pbTodos<WaCampana>("wa_campanas", "", "nombre", "id,nombre"),
+    pb<List<WaConfig>>("collections/wa_config/records?perPage=1"),
   ]);
 
   const porEstado = resumen.reduce<Record<string, number>>((a, c) => ((a[c.estado] = (a[c.estado] ?? 0) + 1), a), {});
-  const etiquetas = [...new Set(resumen.flatMap(etiquetasDe))].sort();
+  const etiquetas = [...new Set([...resumen.flatMap(etiquetasDe), ...etiquetasWa({ etiquetas_wa: config.items[0]?.etiquetas_catalogo })])].sort();
 
   const enlace = (cambios: Record<string, string>) => {
     const p = new URLSearchParams();

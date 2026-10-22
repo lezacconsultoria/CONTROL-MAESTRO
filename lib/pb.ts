@@ -87,6 +87,7 @@ export type WaConfig = {
   tope_diario: number;
   intervalo_min_seg: number;
   intervalo_max_seg: number;
+  etiquetas_catalogo?: string; // etiquetas que existen en WhatsApp Business, «|a|b|»
   updated: string;
 };
 
