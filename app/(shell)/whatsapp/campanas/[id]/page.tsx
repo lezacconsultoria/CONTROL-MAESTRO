@@ -52,7 +52,7 @@ export default async function CampanaPagina({ params }: { params: Promise<{ id: 
     for (const nombre of etiquetasDe(f)) {
       const x = porEtiqueta.get(nombre) ?? { nombre, total: 0, sinContactar: 0 };
       x.total++;
-      if (f.estado === "nuevo" && (!f.campana || f.campana === campana.id)) x.sinContactar++;
+      if ((f.estado === "nuevo" || f.estado === "entrante") && (!f.campana || f.campana === campana.id)) x.sinContactar++;
       porEtiqueta.set(nombre, x);
     }
   }
