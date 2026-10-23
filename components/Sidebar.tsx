@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { logout } from "@/app/login/actions";
 
 type Modulo = {
   href: string;
@@ -98,6 +99,11 @@ export default function Sidebar() {
           );
         })}
       </nav>
+      <form action={logout} className="mt-auto pt-4">
+        <button type="submit" className="w-full rounded-md px-3 py-2 text-left text-sm text-muted hover:bg-surface-2 hover:text-ink">
+          Cerrar sesión
+        </button>
+      </form>
     </aside>
   );
 }

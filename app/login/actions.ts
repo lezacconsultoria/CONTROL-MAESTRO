@@ -16,7 +16,7 @@ export async function login(_: string | null, form: FormData) {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 14,
+    maxAge: 60 * 60 * 24 * 30, // el proxy renueva el token mientras se use la app
     path: "/",
   });
   redirect("/social");
