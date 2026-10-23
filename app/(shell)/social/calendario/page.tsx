@@ -32,9 +32,10 @@ const COLOR: Record<string, string> = {
 export default async function Calendario({
   searchParams,
 }: {
-  searchParams: Promise<{ m?: string }>;
+  searchParams: Promise<{ m?: string; r?: string }>;
 }) {
-  const { m } = await searchParams;
+  const { m, r } = await searchParams;
+  const red = r === "instagram" || r === "linkedin" ? r : "";
   await connection(); // la fecha de hoy cambia en cada visita
   const hoy = new Date(Date.now() - 3 * 3600 * 1000);
   const [anio, mes] = (m && /^\d{4}-\d{2}$/.test(m) ? m : hoy.toISOString().slice(0, 7))
@@ -50,7 +51,7 @@ export default async function Calendario({
 
   const posts = await pb<List<SocialPost>>(
     `collections/social_posts/records?perPage=500&expand=cuenta&sort=programado_en,publicado_en&filter=${encodeURIComponent(
-      `(${rango("programado_en")} || ${rango("publicado_en")}) && estado!="eliminado"`,
+      `(${rango("programado_en")} || ${rango("publicado_en")}) && estado!="eliminado"${red ? ` && cuenta.plataforma="${red}"` : ""}`,
     )}`,
   );
   const porDia = new Map<string, SocialPost[]>();
@@ -63,6 +64,8 @@ export default async function Calendario({
     const d = new Date(Date.UTC(a, b - 1, 1));
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
   };
+  const enlace = (mm: string, rr = red) => `?${new URLSearchParams({ m: mm, ...(rr ? { r: rr } : {}) })}`;
+  const mesActual = `${anio}-${String(mes).padStart(2, "0")}`;
   const titulo = primero.toLocaleDateString("es-AR", { month: "long", year: "numeric", timeZone: "UTC" });
   const celdas = Array.from({ length: Math.ceil((offset + diasMes) / 7) * 7 }, (_, i) => i - offset + 1);
   const hoyKey = hoy.toISOString().slice(0, 10);
@@ -71,9 +74,17 @@ export default async function Calendario({
     <div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href={`?m=${mesStr(anio, mes - 1)}`} className="rounded bg-surface-2 px-3 py-1.5 text-sm">←</Link>
+          <Link href={enlace(mesStr(anio, mes - 1))} className="rounded bg-surface-2 px-3 py-1.5 text-sm">←</Link>
           <h1 className="min-w-48 text-center font-display text-2xl font-bold capitalize">{titulo}</h1>
-          <Link href={`?m=${mesStr(anio, mes + 1)}`} className="rounded bg-surface-2 px-3 py-1.5 text-sm">→</Link>
+          <Link href={enlace(mesStr(anio, mes + 1))} className="rounded bg-surface-2 px-3 py-1.5 text-sm">→</Link>
+        </div>
+        <div className="flex rounded-md bg-surface-2 p-0.5 text-sm">
+          {[["", "Todas"], ["instagram", "Instagram"], ["linkedin", "LinkedIn"]].map(([v, n]) => (
+            <Link key={v} href={enlace(mesActual, v)}
+              className={`rounded px-3 py-1.5 ${red === v ? "bg-accent font-semibold text-white" : "text-muted hover:text-ink"}`}>
+              {n}
+            </Link>
+          ))}
         </div>
         <Link href="/social/editor" className="rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white">
           + Nuevo post
@@ -99,7 +110,7 @@ export default async function Calendario({
                     {(porDia.get(key) ?? []).map((p) => {
                       const hora = horaAR(p.programado_en || p.publicado_en);
                       const cuenta = p.expand?.cuenta;
-                      const red = cuenta?.plataforma === "linkedin" ? "LinkedIn" : "Instagram";
+                      const nombreRed = cuenta?.plataforma === "linkedin" ? "LinkedIn" : "Instagram";
                       return (
                         <div key={p.id} className="group relative">
                           <Link href={`/social/editor?id=${p.id}`}
@@ -112,7 +123,7 @@ export default async function Calendario({
                               i < 7 ? "top-full mt-1" : "bottom-full mb-1"
                             } ${i % 7 >= 4 ? "right-0" : "left-0"}`}
                           >
-                            <div className="font-semibold">{TIPO[p.tipo] ?? p.tipo} en {red}</div>
+                            <div className="font-semibold">{TIPO[p.tipo] ?? p.tipo} en {nombreRed}</div>
                             {cuenta && <div className="text-muted">{cuenta.handle}</div>}
                             <div className="mt-1">{CUANDO[p.estado] ?? "A las"} {hora}</div>
                           </div>

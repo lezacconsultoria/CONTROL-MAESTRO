@@ -29,6 +29,25 @@ const esVideoMime = (t: string) => t.startsWith("video/");
 const esPdfMime = (t: string) => t === "application/pdf";
 const mb = (n: number) => (n / 1048576).toFixed(1);
 
+// Convierte un PNG en JPEG (fondo blanco donde era transparente); cualquier otro archivo vuelve igual.
+async function pngAJpeg(f: File): Promise<File> {
+  if (f.type !== "image/png") return f;
+  try {
+    const bmp = await createImageBitmap(f);
+    const c = document.createElement("canvas");
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const ctx = c.getContext("2d")!;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(bmp, 0, 0);
+    const blob = await new Promise<Blob | null>((ok) => c.toBlob(ok, "image/jpeg", 0.92));
+    return blob ? new File([blob], f.name.replace(/\.png$/i, "") + ".jpg", { type: "image/jpeg" }) : f;
+  } catch {
+    return f;
+  }
+}
+
 const campo =
   "w-full rounded-md border border-line bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent";
 
@@ -89,11 +108,13 @@ export default function EditorForm({
       setErrArchivos(["Este formato admite un solo archivo: se conservó el último que elegiste."]);
     }
   };
-  const agregar = (lista: File[]) => {
+  const agregar = async (entrada: File[]) => {
     const errores: string[] = [];
+    // Instagram solo acepta JPEG: los PNG se convierten solos.
+    const lista = esLinkedin ? entrada : await Promise.all(entrada.map(pngAJpeg));
     const validos = lista.filter((f) => {
       if (esLinkedin ? !mimesLi.includes(f.type) : !PERMITIDOS.includes(f.type)) {
-        errores.push(`"${f.name}" no se puede usar: ${esLinkedin ? `este formato admite ${textoMimesLi}.` : "solo imágenes JPEG y videos MP4/MOV."}`);
+        errores.push(`"${f.name}" no se puede usar: ${esLinkedin ? `este formato admite ${textoMimesLi}.` : "solo imágenes JPEG/PNG y videos MP4/MOV."}`);
         return false;
       }
       if (f.size > MAX_MB * 1048576) {
@@ -111,7 +132,8 @@ export default function EditorForm({
     setNuevos(siguiente);
   };
   // El input real siempre refleja la tapa que se ve en pantalla.
-  const elegirTapa = (f: File | null) => {
+  const elegirTapa = async (entrada: File | null) => {
+    const f = entrada ? await pngAJpeg(entrada) : null;
     let error = "";
     if (f && f.type !== "image/jpeg") error = "La tapa tiene que ser una imagen JPEG.";
     else if (f && f.size > 8 * 1048576) error = `La tapa pesa ${mb(f.size)} MB y el máximo es 8 MB.`;
@@ -189,7 +211,7 @@ export default function EditorForm({
               name="media"
               multiple={!unSoloArchivo}
               disabled={bloqueado}
-              accept={esLinkedin ? mimesLi.join(",") : "image/jpeg,video/mp4,video/quicktime"}
+              accept={esLinkedin ? mimesLi.join(",") : "image/jpeg,image/png,video/mp4,video/quicktime"}
               onChange={(e) => agregar(Array.from(e.target.files ?? []))}
               className="sr-only"
               id="archivos"
@@ -207,7 +229,7 @@ export default function EditorForm({
               >
                 <span className="text-2xl">⬆️</span>
                 <span className="font-semibold">Hacé clic o arrastrá los archivos acá</span>
-                <span className="text-xs text-muted">{esLinkedin ? textoMimesLi : "Imágenes JPEG · Videos MP4 o MOV"} · hasta {MAX_MB} MB cada uno</span>
+                <span className="text-xs text-muted">{esLinkedin ? textoMimesLi : "Imágenes JPEG o PNG · Videos MP4 o MOV"} · hasta {MAX_MB} MB cada uno</span>
               </label>
             )}
 
@@ -275,7 +297,7 @@ export default function EditorForm({
               id="tapa"
               type="file"
               name="tapa"
-              accept="image/jpeg"
+              accept="image/jpeg,image/png"
               disabled={bloqueado}
               onChange={(e) => elegirTapa(e.target.files?.[0] ?? null)}
               className="sr-only"
