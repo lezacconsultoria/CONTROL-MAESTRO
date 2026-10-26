@@ -22,7 +22,10 @@ export default async function Chats({ searchParams }: { searchParams: Promise<{ 
   // Una ventana por cada número del bot (línea). La que se abre por defecto es la de la última actividad.
   const filas = await pbTodos<{ linea: string; ultimo_mensaje: string }>("wa_contactos", 'ultimo_mensaje!=""', "-ultimo_mensaje", "linea,ultimo_mensaje");
   const lineas = [...new Set(filas.map((f) => f.linea))];
-  const linea = sp.l !== undefined && lineas.includes(sp.l) ? sp.l : (lineas[0] ?? "");
+  // Si se llega con un chat sin indicar el número (desde el Resumen), se abre la ventana de ese chat.
+  const deElegido = sp.l === undefined && elegido ? (await pb<WaContacto>(`collections/wa_contactos/records/${elegido}?fields=linea`).catch(() => null))?.linea : undefined;
+  const pedida = sp.l ?? deElegido;
+  const linea = pedida !== undefined && lineas.includes(pedida) ? pedida : (lineas[0] ?? "");
 
   const filtro = ['ultimo_mensaje!=""', `linea="${escapar(linea)}"`, ...(q ? [`(nombre~"${escapar(q)}" || empresa~"${escapar(q)}" || telefono~"${escapar(q.replace(/\D/g, "") || q)}")`] : [])].join(" && ");
   // La huella se toma antes de leer los datos: si algo cambia mientras se arma la página, el próximo sondeo lo detecta.
