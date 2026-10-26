@@ -17,6 +17,7 @@ export type Articulo = {
   toc?: boolean;
   cover?: string;
   blocks?: unknown;
+  html_file?: string; // página completa con funciones propias (calculadoras, guías interactivas)
 };
 
 export type ArticuloRemoto = { articulo: Articulo; sha: string };
@@ -43,6 +44,6 @@ export function slugify(t: string) {
     .replace(/-+$/, "");
 }
 
-export const esEditable = (a: Articulo) => !a.blocks;
+export const esEditable = (a: Articulo) => !a.blocks && !a.html_file;
 
 export const URL_SITIO = "https://lezacconsultoria.com";
