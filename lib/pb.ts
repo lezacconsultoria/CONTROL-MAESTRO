@@ -88,6 +88,9 @@ export type WaConfig = {
   intervalo_min_seg: number;
   intervalo_max_seg: number;
   etiquetas_catalogo?: string; // etiquetas que existen en WhatsApp Business, «|a|b|»
+  conexion_estado?: string; // «conectado» | «desconectado»: lo escribe el motor
+  conexion_linea?: string;
+  conexion_latido?: string; // última vez que el motor dio señal de vida
   updated: string;
 };
 
