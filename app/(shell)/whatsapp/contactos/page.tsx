@@ -115,7 +115,7 @@ export default async function Contactos({
                     <input type="checkbox" name="ids" value={c.id} form="masivo" aria-label={`Marcar a ${c.nombre || c.telefono}`} />
                   </td>
                   <td className="px-3 py-2">
-                    <Link href={`/whatsapp/chats?c=${c.id}`} className="font-semibold hover:text-accent">{c.nombre || "Sin nombre"}</Link>
+                    <Link href={`/whatsapp/chats?c=${c.id}&l=${c.linea ?? ""}`} className="font-semibold hover:text-accent">{c.nombre || "Sin nombre"}</Link>
                     <div className="text-xs text-muted">{c.empresa}</div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 text-xs">{verTelefono(c.telefono)}</td>

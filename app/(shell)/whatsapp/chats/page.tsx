@@ -1,4 +1,4 @@
-import { pb, type List, type WaContacto, type WaMensaje } from "@/lib/pb";
+import { pb, pbTodos, type List, type WaContacto, type WaMensaje } from "@/lib/pb";
 import { diaAR, horaAR } from "@/lib/fecha";
 import { AUTOR, ESTADO_CONTACTO, escapar, fechaHora, verTelefono } from "@/lib/wa";
 import AutoActualizar from "@/components/AutoActualizar";
@@ -14,12 +14,17 @@ function etiquetaDia(iso: string) {
   return `${d}/${m}/${a}`;
 }
 
-export default async function Chats({ searchParams }: { searchParams: Promise<{ c?: string; q?: string }> }) {
+export default async function Chats({ searchParams }: { searchParams: Promise<{ c?: string; q?: string; l?: string }> }) {
   const sp = await searchParams;
   const q = (sp.q ?? "").trim().slice(0, 80);
   const elegido = sp.c && ID.test(sp.c) ? sp.c : "";
 
-  const filtro = ['ultimo_mensaje!=""', ...(q ? [`(nombre~"${escapar(q)}" || empresa~"${escapar(q)}" || telefono~"${escapar(q.replace(/\D/g, "") || q)}")`] : [])].join(" && ");
+  // Una ventana por cada número del bot (línea). La que se abre por defecto es la de la última actividad.
+  const filas = await pbTodos<{ linea: string; ultimo_mensaje: string }>("wa_contactos", 'ultimo_mensaje!=""', "-ultimo_mensaje", "linea,ultimo_mensaje");
+  const lineas = [...new Set(filas.map((f) => f.linea))];
+  const linea = sp.l !== undefined && lineas.includes(sp.l) ? sp.l : (lineas[0] ?? "");
+
+  const filtro = ['ultimo_mensaje!=""', `linea="${escapar(linea)}"`, ...(q ? [`(nombre~"${escapar(q)}" || empresa~"${escapar(q)}" || telefono~"${escapar(q.replace(/\D/g, "") || q)}")`] : [])].join(" && ");
   // La huella se toma antes de leer los datos: si algo cambia mientras se arma la página, el próximo sondeo lo detecta.
   const version = await versionWhatsapp();
   const [lista, recientes, contacto, mensajes] = await Promise.all([
@@ -36,7 +41,7 @@ export default async function Chats({ searchParams }: { searchParams: Promise<{ 
   for (const m of recientes.items) if (!ultimo.has(m.contacto)) ultimo.set(m.contacto, m);
 
   const historial = [...(mensajes?.items ?? [])].reverse();
-  const href = (id: string) => `?${new URLSearchParams({ ...(q ? { q } : {}), c: id })}`;
+  const href = (id: string) => `?${new URLSearchParams({ ...(q ? { q } : {}), l: linea, c: id })}`;
 
   return (
     <div>
@@ -44,9 +49,21 @@ export default async function Chats({ searchParams }: { searchParams: Promise<{ 
       <h1 className="font-display text-2xl font-bold">Chats</h1>
       <p className="mt-1 text-sm text-muted">Conversaciones de WhatsApp con los contactos.</p>
 
+      {lineas.length > 1 && (
+        <nav className="mt-4 flex flex-wrap gap-1.5" aria-label="Números del bot">
+          {lineas.map((l) => (
+            <a key={l} href={`?${new URLSearchParams({ l })}`}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${l === linea ? "bg-accent text-white" : "bg-surface-2 text-muted hover:text-ink"}`}>
+              {l ? verTelefono(l) : "Sin número"}
+            </a>
+          ))}
+        </nav>
+      )}
+
       <div className="mt-5 grid h-[calc(100vh-11rem)] min-h-[480px] gap-4 lg:grid-cols-[320px_1fr]">
         <section className="flex min-h-0 flex-col rounded-lg border border-line bg-surface">
           <form className="border-b border-line p-3">
+            <input type="hidden" name="l" value={linea} />
             {elegido && <input type="hidden" name="c" value={elegido} />}
             <input name="q" defaultValue={q} placeholder="Buscar contacto…"
               className="w-full rounded-md border border-line bg-surface-2 px-3 py-2 text-sm outline-none focus:border-accent" />
