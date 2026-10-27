@@ -29,6 +29,10 @@ const esVideoMime = (t: string) => t.startsWith("video/");
 const esPdfMime = (t: string) => t === "application/pdf";
 const mb = (n: number) => (n / 1048576).toFixed(1);
 
+// LinkedIn solo acepta MP4: un MOV es el mismo contenedor, alcanza con cambiarle el nombre y el tipo.
+const movAMp4 = (f: File) =>
+  f.type === "video/quicktime" || /\.mov$/i.test(f.name) ? new File([f], f.name.replace(/\.mov$/i, ".mp4"), { type: "video/mp4" }) : f;
+
 // Convierte un PNG en JPEG (fondo blanco donde era transparente); cualquier otro archivo vuelve igual.
 async function pngAJpeg(f: File): Promise<File> {
   if (f.type !== "image/png") return f;
@@ -67,6 +71,7 @@ export default function EditorForm({
   const [hashtags, setHashtags] = useState(post.hashtags);
   const [pilar, setPilar] = useState(post.pilar);
   const [cuentaId, setCuentaId] = useState(post.cuenta);
+  const [extras, setExtras] = useState<string[]>([]);
   const [tipo, setTipo] = useState(post.tipo);
   const [nuevos, setNuevos] = useState<File[]>([]);
   const [errArchivos, setErrArchivos] = useState<string[]>([]);
@@ -87,19 +92,28 @@ export default function EditorForm({
     nuevos.forEach((f) => dt.items.add(f));
     inputArchivos.current.files = dt.files;
   }, [nuevos]);
-  const esLinkedin = cuentas.find((c) => c.id === cuentaId)?.plataforma === "linkedin";
+  // Un post nuevo puede salir en varias cuentas: la app crea un post por cuenta.
+  const extrasEf = extras.filter((id) => id !== cuentaId);
+  const elegidas = cuentas.filter((c) => c.id === cuentaId || extrasEf.includes(c.id));
+  const hayLinkedin = elegidas.some((c) => c.plataforma === "linkedin");
+  const hayInstagram = elegidas.some((c) => c.plataforma !== "linkedin");
+  const mixto = hayLinkedin && hayInstagram; // solo Imagen y Video existen en las dos redes
+  const esLinkedin = hayLinkedin && !hayInstagram;
   const limite = esLinkedin ? 3000 : 2200;
   const total = (caption + (hashtags ? "\n\n" + hashtags : "")).length;
   const bloqueado = post.estado === "publicado" || post.estado === "publicando";
 
-  const tipoEf = esLinkedin ? (["imagen", "video", "documento"].includes(tipo) ? tipo : "texto") : tipo;
+  const tipoEf = mixto
+    ? tipo === "video" || tipo === "reel" ? "video" : "imagen"
+    : esLinkedin ? (["imagen", "video", "documento"].includes(tipo) ? tipo : "texto")
+    : tipo === "video" ? "reel" : ["imagen", "carrusel", "reel"].includes(tipo) ? tipo : "imagen";
   const conArchivos = !esLinkedin || tipoEf !== "texto";
   // Tipos de archivo que acepta cada formato de LinkedIn.
   const mimesLi = tipoEf === "video" ? ["video/mp4"] : tipoEf === "documento" ? ["application/pdf"] : ["image/jpeg", "image/png"];
-  const textoMimesLi = tipoEf === "video" ? "Video MP4" : tipoEf === "documento" ? "PDF" : "Imagen JPEG o PNG";
+  const textoMimesLi = tipoEf === "video" ? "Video MP4 o MOV" : tipoEf === "documento" ? "PDF" : "Imagen JPEG o PNG";
   // Los videos se muestran con su proporción real: sin recortes ni barras.
   const videoPreview = nuevos[0] ? esVideoMime(nuevos[0].type) : /\.(mp4|mov)$/i.test(post.media[0]?.nombre ?? "");
-  const unSoloArchivo = esLinkedin || tipo !== "carrusel";
+  const unSoloArchivo = esLinkedin || tipoEf !== "carrusel";
   // Si el formato pasa a admitir un solo archivo, se conserva el último elegido.
   const cambiarTipo = (t: string) => {
     setTipo(t);
@@ -110,11 +124,14 @@ export default function EditorForm({
   };
   const agregar = async (entrada: File[]) => {
     const errores: string[] = [];
-    // Instagram solo acepta JPEG: los PNG se convierten solos.
-    const lista = esLinkedin ? entrada : await Promise.all(entrada.map(pngAJpeg));
+    // Instagram solo acepta JPEG (los PNG se convierten solos) y LinkedIn solo MP4 (un MOV se pasa a MP4).
+    let lista = hayInstagram ? await Promise.all(entrada.map(pngAJpeg)) : entrada;
+    if (hayLinkedin) lista = lista.map(movAMp4);
+    const permitidos = mixto ? (tipoEf === "video" ? ["video/mp4"] : ["image/jpeg"]) : esLinkedin ? mimesLi : PERMITIDOS;
     const validos = lista.filter((f) => {
-      if (esLinkedin ? !mimesLi.includes(f.type) : !PERMITIDOS.includes(f.type)) {
-        errores.push(`"${f.name}" no se puede usar: ${esLinkedin ? `este formato admite ${textoMimesLi}.` : "solo imágenes JPEG/PNG y videos MP4/MOV."}`);
+      if (!permitidos.includes(f.type)) {
+        const admite = mixto ? (tipoEf === "video" ? "video MP4 o MOV" : "imagen JPEG o PNG") : textoMimesLi;
+        errores.push(`"${f.name}" no se puede usar: ${mixto || esLinkedin ? `este formato admite ${admite}.` : "solo imágenes JPEG/PNG y videos MP4/MOV."}`);
         return false;
       }
       if (f.size > MAX_MB * 1048576) {
@@ -180,10 +197,40 @@ export default function EditorForm({
           </select>
         </label>
 
+        {!post.id && cuentas.length > 1 && (
+          <div className="text-sm">
+            <span className="mb-1 block text-muted">También publicar en</span>
+            <div className="flex flex-wrap gap-2">
+              {cuentas.filter((c) => c.id !== cuentaId).map((c) => {
+                const marcada = extrasEf.includes(c.id);
+                return (
+                  <label key={c.id}
+                    className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 ${marcada ? "border-accent bg-accent/10" : "border-line bg-surface-2"}`}>
+                    <input type="checkbox" checked={marcada} className="accent-[var(--color-accent)]"
+                      onChange={(e) => setExtras(e.target.checked ? [...extrasEf, c.id] : extrasEf.filter((x) => x !== c.id))} />
+                    {c.plataforma === "instagram" ? "Instagram" : "LinkedIn"} · {c.handle}
+                  </label>
+                );
+              })}
+            </div>
+            {extrasEf.map((id) => <input key={id} type="hidden" name="cuenta_extra" value={id} />)}
+            {mixto && (
+              <p className="mt-1.5 text-xs text-muted">
+                Se crea un post por cuenta. En las dos redes solo existen Imagen y Video (en Instagram, el video sale como reel).
+              </p>
+            )}
+          </div>
+        )}
+
         <label className="block text-sm">
           <span className="mb-1 block text-muted">Formato</span>
           <select name="tipo" value={tipoEf} onChange={(e) => cambiarTipo(e.target.value)} disabled={bloqueado} className={campo}>
-            {esLinkedin ? (
+            {mixto ? (
+              <>
+                <option value="imagen">Imagen</option>
+                <option value="video">Video</option>
+              </>
+            ) : esLinkedin ? (
               <>
                 <option value="texto">Texto / enlace</option>
                 <option value="imagen">Imagen</option>
@@ -211,7 +258,11 @@ export default function EditorForm({
               name="media"
               multiple={!unSoloArchivo}
               disabled={bloqueado}
-              accept={esLinkedin ? mimesLi.join(",") : "image/jpeg,image/png,video/mp4,video/quicktime"}
+              accept={
+                mixto
+                  ? tipoEf === "video" ? "video/mp4,video/quicktime" : "image/jpeg,image/png"
+                  : esLinkedin ? (tipoEf === "video" ? "video/mp4,video/quicktime" : mimesLi.join(",")) : "image/jpeg,image/png,video/mp4,video/quicktime"
+              }
               onChange={(e) => agregar(Array.from(e.target.files ?? []))}
               className="sr-only"
               id="archivos"
@@ -229,7 +280,7 @@ export default function EditorForm({
               >
                 <span className="text-2xl">⬆️</span>
                 <span className="font-semibold">Hacé clic o arrastrá los archivos acá</span>
-                <span className="text-xs text-muted">{esLinkedin ? textoMimesLi : "Imágenes JPEG o PNG · Videos MP4 o MOV"} · hasta {MAX_MB} MB cada uno</span>
+                <span className="text-xs text-muted">{mixto ? (tipoEf === "video" ? "Video MP4 o MOV" : "Imagen JPEG o PNG") : esLinkedin ? textoMimesLi : "Imágenes JPEG o PNG · Videos MP4 o MOV"} · hasta {MAX_MB} MB cada uno</span>
               </label>
             )}
 
@@ -289,7 +340,7 @@ export default function EditorForm({
           </div>
         )}
 
-        {!esLinkedin && tipoEf === "reel" && (
+        {!esLinkedin && (tipoEf === "reel" || (mixto && tipoEf === "video")) && (
           <div className="text-sm">
             <span className="mb-1 block text-muted">Tapa del reel (opcional)</span>
             <input

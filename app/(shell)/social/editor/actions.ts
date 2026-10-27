@@ -34,76 +34,109 @@ async function recordarEnHistorial(pares: [string, string][]) {
   }
 }
 
+// LinkedIn solo acepta MP4: un MOV es el mismo contenedor, alcanza con cambiarle el nombre y el tipo.
+const aMp4 = (f: File) =>
+  f.type === "video/quicktime" || /\.mov$/i.test(f.name) ? new File([f], f.name.replace(/\.mov$/i, ".mp4"), { type: "video/mp4" }) : f;
+
 export async function guardarPost(_: Estado, form: FormData): Promise<Estado> {
   const id = String(form.get("id") ?? "");
   const tipo = String(form.get("tipo"));
   const accion = String(form.get("accion")); // borrador | programar
   const caption = String(form.get("caption") ?? "").trim();
   const hashtags = String(form.get("hashtags") ?? "").trim();
+  const pilar = String(form.get("pilar") ?? "").trim();
   const cuando = String(form.get("programado_en") ?? "");
-  const archivos = form.getAll("media").filter((f): f is File => f instanceof File && f.size > 0);
+  const archivosOrig = form.getAll("media").filter((f): f is File => f instanceof File && f.size > 0);
   const previos = Number(form.get("media_previos") ?? 0);
-  const nMedia = archivos.length || previos;
+  const nMedia = archivosOrig.length || previos;
 
-  const cuentaId = String(form.get("cuenta") ?? "");
-  const cuenta = await pb<Cuenta>(`collections/social_cuentas/records/${encodeURIComponent(cuentaId)}`);
-  const linkedin = cuenta.plataforma === "linkedin";
-  const maxCaption = linkedin ? 3000 : 2200;
+  // Un post nuevo puede salir en varias cuentas a la vez: se crea un post independiente por cuenta.
+  const idsCuentas = [String(form.get("cuenta") ?? ""), ...(id ? [] : form.getAll("cuenta_extra").map(String))].filter(
+    (c, i, a) => c && a.indexOf(c) === i,
+  );
+  const cuentas = await Promise.all(idsCuentas.map((c) => pb<Cuenta>(`collections/social_cuentas/records/${encodeURIComponent(c)}`)));
+  if (!cuentas.length) return { error: "Elegí al menos una cuenta." };
+  const esLi = (c: Cuenta) => c.plataforma === "linkedin";
+  const hayIG = cuentas.some((c) => !esLi(c));
+  const hayLI = cuentas.some(esLi);
+  if (hayIG && hayLI && tipo !== "imagen" && tipo !== "video") {
+    return { error: "Para publicar en Instagram y LinkedIn a la vez elegí Imagen o Video: los otros formatos existen en una sola red." };
+  }
+  const tipoDe = (c: Cuenta) => (tipo === "video" && !esLi(c) ? "reel" : tipo); // el video de Instagram es un reel
+  const archivosDe = (c: Cuenta) => (esLi(c) ? archivosOrig.map(aMp4) : archivosOrig);
+
+  const maxCaption = hayIG ? 2200 : 3000;
   if ((caption + " " + hashtags).trim().length > maxCaption) return { error: `El texto supera los ${maxCaption} caracteres.` };
-  if (!linkedin && hashtags.split(/\s+/).filter((h) => h.startsWith("#")).length > 30) return { error: "Máximo 30 hashtags." };
+  if (hayIG && hashtags.split(/\s+/).filter((h) => h.startsWith("#")).length > 30) return { error: "Máximo 30 hashtags." };
   const mimesLi: Record<string, string[]> = {
     imagen: ["image/jpeg", "image/png"],
     video: ["video/mp4"],
     documento: ["application/pdf"],
   };
-  if (linkedin && tipo !== "texto" && !mimesLi[tipo]) return { error: "LinkedIn admite texto, imagen, video o documento PDF." };
-  if (linkedin && tipo === "texto" && archivos.length) return { error: "Un post de texto no lleva archivos: cambiá el formato." };
-  if (linkedin && tipo !== "texto" && archivos.some((f) => !mimesLi[tipo].includes(f.type))) {
-    return { error: `Para este formato LinkedIn admite: ${tipo === "video" ? "video MP4" : tipo === "documento" ? "PDF" : "imagen JPEG o PNG"}.` };
-  }
-  if (linkedin && nMedia > 1) return { error: "Por ahora LinkedIn admite un solo archivo por post." };
-  if (linkedin && !caption) return { error: "Escribí el texto del post." };
-
-  if (!linkedin && (tipo === "imagen" || tipo === "carrusel")) {
-    if (archivos.some((f) => f.type === "image/png")) {
+  const fechaOk = new Date(desdeInputLocal(cuando)) >= new Date();
+  for (const c of cuentas) {
+    const t = tipoDe(c);
+    const linkedin = esLi(c);
+    const archivos = archivosDe(c);
+    if (linkedin && t !== "texto" && !mimesLi[t]) return { error: "LinkedIn admite texto, imagen, video o documento PDF." };
+    if (linkedin && t === "texto" && archivos.length) return { error: "Un post de texto no lleva archivos: cambiá el formato." };
+    if (linkedin && t !== "texto" && archivos.some((f) => !mimesLi[t].includes(f.type))) {
+      return { error: `Para este formato LinkedIn admite: ${t === "video" ? "video MP4 o MOV" : t === "documento" ? "PDF" : "imagen JPEG o PNG"}.` };
+    }
+    if (linkedin && nMedia > 1) return { error: "Por ahora LinkedIn admite un solo archivo por post." };
+    if (linkedin && !caption) return { error: "Escribí el texto del post." };
+    if (!linkedin && (t === "imagen" || t === "carrusel") && archivos.some((f) => f.type === "image/png")) {
       return { error: "Instagram solo acepta imágenes JPEG. Convertí el PNG a JPG." };
+    }
+    if (accion === "programar") {
+      if (!cuando) return { error: "Elegí fecha y hora para programar." };
+      if (!fechaOk) return { error: "La fecha de publicación ya pasó." };
+      if ((!linkedin || t !== "texto") && nMedia === 0) return { error: "Subí al menos un archivo para programar." };
+      if (t === "carrusel" && (nMedia < 2 || nMedia > 10)) return { error: "Un carrusel necesita entre 2 y 10 archivos." };
+      if (t !== "carrusel" && nMedia > 1) return { error: "Este formato admite un solo archivo." };
     }
   }
 
-  if (accion === "programar") {
-    if (!cuando) return { error: "Elegí fecha y hora para programar." };
-    if (new Date(desdeInputLocal(cuando)) < new Date()) return { error: "La fecha de publicación ya pasó." };
-    if ((!linkedin || tipo !== "texto") && nMedia === 0) return { error: "Subí al menos un archivo para programar." };
-    if (tipo === "carrusel" && (nMedia < 2 || nMedia > 10)) return { error: "Un carrusel necesita entre 2 y 10 archivos." };
-    if (tipo !== "carrusel" && nMedia > 1) return { error: "Este formato admite un solo archivo." };
-  }
-
-  const body = new FormData();
-  body.set("tipo", tipo);
-  body.set("caption", caption);
-  body.set("hashtags", hashtags);
-  body.set("pilar", String(form.get("pilar") ?? "").trim());
-  body.set("titulo", caption.split("\n")[0].slice(0, 80));
-  body.set("estado", accion === "programar" ? "programado" : "borrador");
-  body.set("programado_en", accion === "programar" && cuando ? desdeInputLocal(cuando) : "");
-  body.set("error", "");
-  body.set("cuenta", cuenta.id);
-  archivos.forEach((f) => body.append("media", f));
-  const tapa = form.get("tapa");
-  if (tipo === "reel" && !linkedin && tapa instanceof File && tapa.size > 0) {
+  const tapaEntrada = form.get("tapa");
+  const tapa = tapaEntrada instanceof File && tapaEntrada.size > 0 ? tapaEntrada : null;
+  if (tapa && cuentas.some((c) => !esLi(c) && tipoDe(c) === "reel")) {
     if (tapa.type !== "image/jpeg") return { error: "La tapa tiene que ser una imagen JPEG." };
     if (tapa.size > 8 * 1048576) return { error: "La tapa supera los 8 MB." };
-    body.set("tapa", tapa);
   }
 
-  try {
-    const r = await (id
-      ? pbWrite("PATCH", `collections/social_posts/records/${id}`, body)
-      : pbWrite("POST", "collections/social_posts/records", body));
-    await recordarEnHistorial([["hashtags", hashtags], ["pilar", String(form.get("pilar") ?? "").trim()]]);
-    if (accion === "programar") await avisarPublicador(r.id);
-  } catch (e) {
-    return { error: (e as Error).message };
+  const creados: string[] = [];
+  const fallos: string[] = [];
+  for (const c of cuentas) {
+    const t = tipoDe(c);
+    const body = new FormData();
+    body.set("tipo", t);
+    body.set("caption", caption);
+    body.set("hashtags", hashtags);
+    body.set("pilar", pilar);
+    body.set("titulo", caption.split(/\n/)[0].slice(0, 80));
+    body.set("estado", accion === "programar" ? "programado" : "borrador");
+    body.set("programado_en", accion === "programar" && cuando ? desdeInputLocal(cuando) : "");
+    body.set("error", "");
+    body.set("cuenta", c.id);
+    archivosDe(c).forEach((f) => body.append("media", f));
+    if (tapa && t === "reel" && !esLi(c)) body.set("tapa", tapa);
+    try {
+      const r = await (id
+        ? pbWrite("PATCH", `collections/social_posts/records/${id}`, body)
+        : pbWrite("POST", "collections/social_posts/records", body));
+      if (accion === "programar") await avisarPublicador(r.id);
+      creados.push(c.handle);
+    } catch (e) {
+      fallos.push(`${c.handle}: ${(e as Error).message}`);
+    }
+  }
+  if (creados.length) await recordarEnHistorial([["hashtags", hashtags], ["pilar", pilar]]);
+  if (fallos.length) {
+    return {
+      error: creados.length
+        ? `Se creó en ${creados.join(", ")}, pero falló en ${fallos.join("; ")}. Revisá el calendario antes de reintentar para no duplicar.`
+        : fallos.join("; "),
+    };
   }
   redirect("/social/calendario");
 }
