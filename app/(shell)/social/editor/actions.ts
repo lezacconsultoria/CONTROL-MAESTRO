@@ -64,7 +64,7 @@ export async function guardarPost(_: Estado, form: FormData): Promise<Estado> {
   if (linkedin && nMedia > 1) return { error: "Por ahora LinkedIn admite un solo archivo por post." };
   if (linkedin && !caption) return { error: "Escribí el texto del post." };
 
-  if (tipo === "imagen" || tipo === "carrusel") {
+  if (!linkedin && (tipo === "imagen" || tipo === "carrusel")) {
     if (archivos.some((f) => f.type === "image/png")) {
       return { error: "Instagram solo acepta imágenes JPEG. Convertí el PNG a JPG." };
     }
