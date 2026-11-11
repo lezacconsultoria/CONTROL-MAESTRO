@@ -14,7 +14,7 @@ async function AvisoConexion() {
   const numero = c.conexion_linea ? ` (${verTelefono(c.conexion_linea)})` : "";
   return (
     <div role="alert" className="mb-5 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-      <strong>{caido ? "El bot no responde" : "WhatsApp está desconectado"}</strong>
+      <strong>{caido ? "El bot no responde" : c.conexion_estado === "colgado" ? "El motor de envíos está detenido" : "WhatsApp está desconectado"}</strong>
       {numero}. {caido ? "Última señal" : "Sin conexión desde"} {fechaHora(c.conexion_latido)}. No se envían campañas ni se contestan mensajes hasta que vuelva.
       Si pasa un rato y sigue así, hay que revisar el servidor o volver a vincular el número.
     </div>
