@@ -6,6 +6,7 @@ import type { Cuenta } from "@/lib/pb";
 import Cargando from "@/components/Cargando";
 import BotonReutilizar from "@/components/BotonReutilizar";
 import CampoHistorial from "@/components/CampoHistorial";
+import { FORMATOS, limites, soporte, tipoCuenta } from "@/lib/social-capacidades";
 
 export type PostEditable = {
   id: string;
@@ -193,7 +194,7 @@ export default function EditorForm({
             onChange={(e) => setCuentaId(e.target.value)} className={campo}>
             {cuentas.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.plataforma === "instagram" ? "Instagram" : "LinkedIn"} · {c.handle}
+                {tipoCuenta(c)} · {c.handle}
               </option>
             ))}
           </select>
@@ -210,7 +211,7 @@ export default function EditorForm({
                     className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 ${marcada ? "border-accent bg-accent/10" : "border-line bg-surface-2"}`}>
                     <input type="checkbox" checked={marcada} className="accent-[var(--color-accent)]"
                       onChange={(e) => setExtras(e.target.checked ? [...extrasEf, c.id] : extrasEf.filter((x) => x !== c.id))} />
-                    {c.plataforma === "instagram" ? "Instagram" : "LinkedIn"} · {c.handle}
+                    {tipoCuenta(c)} · {c.handle}
                   </label>
                 );
               })}
@@ -224,6 +225,39 @@ export default function EditorForm({
           </div>
         )}
 
+        <div className="rounded-lg border border-line bg-surface p-3 text-xs">
+          <p className="mb-2 font-semibold text-muted">Qué se puede publicar en {elegidas.length > 1 ? "estas cuentas" : "esta cuenta"}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[320px] text-left">
+              <thead>
+                <tr className="text-muted">
+                  <th className="py-1 pr-2 font-normal">Formato</th>
+                  {elegidas.map((c) => <th key={c.id} className="px-2 py-1 font-normal">{tipoCuenta(c)}</th>)}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {FORMATOS.map((f) => (
+                  <tr key={f.id}>
+                    <td className="py-1.5 pr-2 font-semibold">{f.nombre}</td>
+                    {elegidas.map((c) => {
+                      const sp = soporte(c, f.id);
+                      return (
+                        <td key={c.id} className="px-2 py-1.5 align-top">
+                          <span className={sp.ok ? "font-bold text-[#25f5a4]" : "font-bold text-red-400"}>{sp.ok ? "✓ Sí" : "✗ No"}</span>
+                          <span className="mt-0.5 block text-muted">{sp.nota}</span>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <ul className="mt-2 space-y-0.5 text-muted">
+            {elegidas.map((c) => <li key={c.id}><b>{tipoCuenta(c)}:</b> {limites(c)}</li>)}
+          </ul>
+        </div>
+
         <label className="block text-sm">
           <span className="mb-1 block text-muted">Formato</span>
           <select name="tipo" value={tipoEf} onChange={(e) => cambiarTipo(e.target.value)} disabled={bloqueado} className={campo}>
@@ -231,6 +265,7 @@ export default function EditorForm({
               <>
                 <option value="imagen">Imagen</option>
                 <option value="video">Video</option>
+                <option disabled>Texto, carrusel y documento — existen en una sola red</option>
               </>
             ) : esLinkedin ? (
               <>
@@ -238,12 +273,15 @@ export default function EditorForm({
                 <option value="imagen">Imagen</option>
                 <option value="video">Video</option>
                 <option value="documento">Documento PDF</option>
+                <option disabled>Carrusel — todavía no disponible en LinkedIn (usá Documento PDF)</option>
               </>
             ) : (
               <>
                 <option value="imagen">Imagen</option>
                 <option value="carrusel">Carrusel (2–10)</option>
                 <option value="reel">Reel</option>
+                <option disabled>Solo texto — Instagram necesita imagen o video</option>
+                <option disabled>Documento PDF — no disponible en Instagram</option>
               </>
             )}
           </select>
