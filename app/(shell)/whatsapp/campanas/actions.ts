@@ -11,7 +11,7 @@ const ID = /^[a-z0-9]{15}$/;
 const ESTADOS = ["borrador", "activa", "pausada", "terminada"];
 
 /** Por qué esta campaña no se puede activar (o null si se puede): necesita una etiqueta y no puede repetirla con otra activa. */
-async function problemaDeActivacion(id: string, etiqueta: string): Promise<string | null> {
+async function problemaDeActivacion(id: string, etiqueta: string, linea: string): Promise<string | null> {
   if (!etiqueta) {
     // Campañas viejas con contactos asignados a mano pueden activarse sin etiqueta.
     const asignados = id
@@ -19,7 +19,9 @@ async function problemaDeActivacion(id: string, etiqueta: string): Promise<strin
       : null;
     return asignados && asignados.totalItems > 0 ? null : "Para activar la campaña elegí a qué etiqueta se le envía, o dejala en borrador.";
   }
-  const filtro = `estado="activa" && etiqueta="${escapar(etiqueta)}"${id ? ` && id!="${id}"` : ""}`;
+  // Dos campañas con la misma etiqueta chocan solo si pueden salir por el mismo número (una de las dos es «cualquiera» o la misma línea).
+  const mismaLinea = linea ? ` && (linea="" || linea="${escapar(linea)}")` : "";
+  const filtro = `estado="activa" && etiqueta="${escapar(etiqueta)}"${mismaLinea}${id ? ` && id!="${id}"` : ""}`;
   const otras = await pb<List<{ id: string; nombre: string }>>(
     `collections/wa_campanas/records?perPage=1&fields=id,nombre&filter=${encodeURIComponent(filtro)}`,
   );
@@ -73,6 +75,7 @@ export async function guardarCampana(_: EstadoCampana, form: FormData): Promise<
 
   const nombre = String(form.get("nombre") ?? "").trim();
   const etiqueta = normEtiqueta(String(form.get("etiqueta") ?? ""));
+  const linea = String(form.get("linea") ?? "").replace(/\D/g, "").slice(0, 20);
   const estado = String(form.get("estado") ?? "borrador");
   const cierre = horas(form.get("espera_cierre_horas"));
   const leidos = leerPasos(form.get("pasos"));
@@ -89,7 +92,7 @@ export async function guardarCampana(_: EstadoCampana, form: FormData): Promise<
   if (modo === "agente" && !ficha) return { error: "Para que el agente responda, escribí la ficha de la campaña: sin ella no sabría qué contestar." };
   if (leidos.pasos.length === 0 && estado === "activa") return { error: "Para activar la campaña escribí al menos un mensaje en el paso 1." };
   if (estado === "activa") {
-    const problema = await problemaDeActivacion(id, etiqueta);
+    const problema = await problemaDeActivacion(id, etiqueta, linea);
     if (problema) return { error: problema };
   }
 
@@ -97,6 +100,7 @@ export async function guardarCampana(_: EstadoCampana, form: FormData): Promise<
   const datos = {
     nombre,
     etiqueta,
+    linea,
     estado,
     pasos: leidos.pasos,
     modo_respuesta: modo,
@@ -124,7 +128,7 @@ export async function cambiarEstadoCampana(form: FormData) {
   if (estado === "activa") {
     const c = await pb<WaCampana>(`collections/wa_campanas/records/${id}`);
     if (pasosDe(c).length === 0) throw new Error("La campaña no tiene mensajes: completala antes de activarla.");
-    const problema = await problemaDeActivacion(id, normEtiqueta(c.etiqueta ?? ""));
+    const problema = await problemaDeActivacion(id, normEtiqueta(c.etiqueta ?? ""), c.linea ?? "");
     if (problema) throw new Error(problema);
   }
   await pbJson("PATCH", `collections/wa_campanas/records/${id}`, { estado });

@@ -7,6 +7,7 @@ const NUEVA: CampanaEditable = {
   id: "",
   nombre: "",
   etiqueta: "",
+  linea: "",
   estado: "borrador",
   pasos: [{ espera_horas: 0, mensajes: [""] }],
   espera_cierre_horas: 72,
@@ -31,6 +32,7 @@ export default async function CampanaPagina({ params }: { params: Promise<{ id: 
       id: c.id,
       nombre: c.nombre,
       etiqueta: c.etiqueta,
+      linea: c.linea ?? "",
       estado: c.estado,
       pasos: pasos.length ? pasos : NUEVA.pasos,
       espera_cierre_horas: c.espera_cierre_horas,
@@ -43,6 +45,7 @@ export default async function CampanaPagina({ params }: { params: Promise<{ id: 
   // Etiquetas que existen en Contactos: cuántos contactos hay con cada una y cuántos todavía no se contactaron
   // (los que esta campaña, si está activa, va a encontrar).
   const catalogos = await pb<List<{ catalogo: string }>>("collections/wa_etiquetas/records?perPage=20&fields=catalogo");
+  const latidos = await pb<List<{ linea: string }>>("collections/wa_latido/records?perPage=20&sort=linea&fields=linea");
   const filas = await pbTodos<{ etiqueta: string; etiquetas_wa: string; estado: string; campana: string }>(
     "wa_contactos", 'etiqueta!="" || etiquetas_wa!=""', "", "etiqueta,etiquetas_wa,estado,campana",
   );
@@ -65,7 +68,7 @@ export default async function CampanaPagina({ params }: { params: Promise<{ id: 
   return (
     <div>
       <h1 className="mb-6 font-display text-2xl font-bold">{campana.id ? "Editar campaña" : "Nueva campaña"}</h1>
-      <CampanaForm key={campana.id || "nueva"} campana={campana} contactos={contactos} etiquetas={etiquetas} />
+      <CampanaForm key={campana.id || "nueva"} campana={campana} contactos={contactos} etiquetas={etiquetas} lineas={latidos.items.map((l) => l.linea)} />
     </div>
   );
 }

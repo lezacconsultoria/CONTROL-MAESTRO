@@ -101,6 +101,7 @@ export type WaCampana = {
   id: string;
   nombre: string;
   etiqueta: string;
+  linea: string; // número desde el que sale (549…); vacío = cualquiera
   estado: "borrador" | "activa" | "pausada" | "terminada";
   pasos: WaPaso[] | null;
   modo_respuesta: "" | "avisar" | "agente"; // qué pasa cuando un contacto responde: solo avisar a Leandro, o contesta el agente

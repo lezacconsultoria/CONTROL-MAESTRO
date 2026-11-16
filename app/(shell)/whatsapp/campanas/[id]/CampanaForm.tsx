@@ -5,7 +5,7 @@ import { useActionState, useRef, useState } from "react";
 import { eliminarCampana, guardarCampana } from "../actions";
 import Cargando from "@/components/Cargando";
 import type { WaPaso } from "@/lib/pb";
-import { ESTADO_CAMPANA, MAX_FICHA, MAX_MENSAJES_PASO, MAX_PASOS, MAX_TEXTO, VARIABLES, enlacesDe, normEtiqueta, partesConEnlaces, rellenar } from "@/lib/wa";
+import { ESTADO_CAMPANA, verTelefono, MAX_FICHA, MAX_MENSAJES_PASO, MAX_PASOS, MAX_TEXTO, VARIABLES, enlacesDe, normEtiqueta, partesConEnlaces, rellenar } from "@/lib/wa";
 
 /** Una etiqueta de Contactos: cuántos contactos la tienen y cuántos todavía no recibieron ninguna campaña. */
 export type EtiquetaInfo = { nombre: string; total: number; sinContactar: number };
@@ -14,6 +14,7 @@ export type CampanaEditable = {
   id: string;
   nombre: string;
   etiqueta: string;
+  linea: string;
   estado: string;
   pasos: WaPaso[];
   espera_cierre_horas: number;
@@ -48,7 +49,7 @@ const boton = "rounded-md bg-surface-2 px-2.5 py-1 text-xs text-muted hover:text
 const EJEMPLO = { nombre: "Juan", empresa: "Distribuidora Norte" };
 const OTRA = "__otra__";
 
-export default function CampanaForm({ campana, contactos, etiquetas }: { campana: CampanaEditable; contactos: number; etiquetas: EtiquetaInfo[] }) {
+export default function CampanaForm({ campana, contactos, etiquetas, lineas }: { campana: CampanaEditable; contactos: number; etiquetas: EtiquetaInfo[]; lineas: string[] }) {
   const [res, action, pending] = useActionState(guardarCampana, { error: null });
   const [etiqueta, setEtiqueta] = useState(campana.etiqueta);
   // Si la campaña ya tiene una etiqueta que todavía no existe en Contactos, se muestra como «Otra».
@@ -149,6 +150,16 @@ export default function CampanaForm({ campana, contactos, etiquetas }: { campana
             </select>
           </label>
         </div>
+
+        {lineas.length > 0 && (
+          <label className="block text-sm md:max-w-sm">
+            <span className="mb-1 block text-muted">Enviar desde</span>
+            <select name="linea" defaultValue={campana.linea} className={campo}>
+              <option value="">Cualquiera: cada contacto, por el número donde tiene la etiqueta</option>
+              {lineas.map((l) => <option key={l} value={l}>Solo {verTelefono(l)}</option>)}
+            </select>
+          </label>
+        )}
 
         <div className="rounded-lg border border-line bg-surface p-3 text-xs">
           {!normEtiqueta(etiqueta) ? (

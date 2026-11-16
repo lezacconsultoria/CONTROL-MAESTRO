@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { pbTodos, type WaCampana } from "@/lib/pb";
-import { ESTADO_CAMPANA, etiquetasDe, normEtiqueta, pasosDe } from "@/lib/wa";
+import { ESTADO_CAMPANA, etiquetasDe, normEtiqueta, pasosDe, verTelefono } from "@/lib/wa";
 import { cambiarEstadoCampana } from "./actions";
 
 const fmt = new Intl.NumberFormat("es-AR");
@@ -71,6 +71,7 @@ export default async function Campanas() {
                       {c.etiqueta
                         ? `Se envía a la etiqueta «${normEtiqueta(c.etiqueta)}» · ${fmt.format(sinContactar.get(normEtiqueta(c.etiqueta)) ?? 0)} sin contactar`
                         : "Sin etiqueta: no se envía a nadie"}
+                      {c.linea ? ` · solo desde ${verTelefono(c.linea)}` : ""}
                     </p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${e.clase}`}>{e.nombre}</span>
