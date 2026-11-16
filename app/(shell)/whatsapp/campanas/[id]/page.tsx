@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { pb, pbTodos, type List, type WaCampana, type WaConfig } from "@/lib/pb";
+import { pb, pbTodos, type List, type WaCampana } from "@/lib/pb";
 import { etiquetasDe, etiquetasWa as etiquetasDeCampo, pasosDe } from "@/lib/wa";
 import CampanaForm, { type CampanaEditable, type EtiquetaInfo } from "./CampanaForm";
 
@@ -42,7 +42,7 @@ export default async function CampanaPagina({ params }: { params: Promise<{ id: 
 
   // Etiquetas que existen en Contactos: cuántos contactos hay con cada una y cuántos todavía no se contactaron
   // (los que esta campaña, si está activa, va a encontrar).
-  const config = await pb<List<WaConfig>>("collections/wa_config/records?perPage=1");
+  const catalogos = await pb<List<{ catalogo: string }>>("collections/wa_etiquetas/records?perPage=20&fields=catalogo");
   const filas = await pbTodos<{ etiqueta: string; etiquetas_wa: string; estado: string; campana: string }>(
     "wa_contactos", 'etiqueta!="" || etiquetas_wa!=""', "", "etiqueta,etiquetas_wa,estado,campana",
   );
@@ -57,7 +57,7 @@ export default async function CampanaPagina({ params }: { params: Promise<{ id: 
     }
   }
   // Etiquetas creadas en WhatsApp Business que todavía no tienen ningún contacto.
-  for (const nombre of etiquetasDeCampo({ etiquetas_wa: config.items[0]?.etiquetas_catalogo })) {
+  for (const nombre of catalogos.items.flatMap((c) => etiquetasDeCampo({ etiquetas_wa: c.catalogo }))) {
     if (!porEtiqueta.has(nombre)) porEtiqueta.set(nombre, { nombre, total: 0, sinContactar: 0 });
   }
   const etiquetas = [...porEtiqueta.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
