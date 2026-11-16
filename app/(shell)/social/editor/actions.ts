@@ -143,12 +143,12 @@ export async function guardarPost(_: Estado, form: FormData): Promise<Estado> {
 
 // Archivos de un post importado: n8n pregunta a Instagram y devuelve las direcciones;
 // la app los descarga y los guarda todos juntos en el borrador.
-async function archivosDeInstagram(externo: string): Promise<{ archivos: { blob: Blob; nombre: string }[]; aviso?: string }> {
+async function archivosDeInstagram(externo: string, conexion: string): Promise<{ archivos: { blob: Blob; nombre: string }[]; aviso?: string }> {
   try {
     const r = await fetch(process.env.N8N_MEDIA_URL!, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Webhook-Secret": process.env.N8N_WEBHOOK_SECRET! },
-      body: JSON.stringify({ externo }),
+      body: JSON.stringify({ externo, ...(conexion ? { conexion } : {}) }),
       signal: AbortSignal.timeout(30000),
     });
     const j = (await r.json()) as { ok: boolean; urls?: string[]; error?: string };
@@ -191,7 +191,8 @@ export async function duplicarPost(form: FormData) {
       if (r.ok) archivos.push({ blob: await r.blob(), nombre });
     }
   } else if (p.externo_id) {
-    ({ archivos, aviso } = await archivosDeInstagram(p.externo_id));
+    const cuenta = await pb<Cuenta & { composio_cuenta?: string }>(`collections/social_cuentas/records/${encodeURIComponent(p.cuenta)}`).catch(() => null);
+    ({ archivos, aviso } = await archivosDeInstagram(p.externo_id, cuenta?.composio_cuenta ?? ""));
   }
 
   const conArchivos = base();
