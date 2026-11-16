@@ -3,6 +3,9 @@ import { connection } from "next/server";
 import { pb, type List, type SocialPost } from "@/lib/pb";
 import { diaAR, horaAR } from "@/lib/fecha";
 
+// Hora argentina actual (aparte del componente para que el render no llame a Date.now directamente).
+const ahoraAR = () => new Date(Date.now() - 3 * 3600 * 1000);
+
 const DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const TIPO: Record<string, string> = {
   imagen: "Imagen",
@@ -37,7 +40,7 @@ export default async function Calendario({
   const { m, r } = await searchParams;
   const red = r === "instagram" || r === "linkedin" ? r : "";
   await connection(); // la fecha de hoy cambia en cada visita
-  const hoy = new Date(Date.now() - 3 * 3600 * 1000);
+  const hoy = ahoraAR();
   const [anio, mes] = (m && /^\d{4}-\d{2}$/.test(m) ? m : hoy.toISOString().slice(0, 7))
     .split("-")
     .map(Number);

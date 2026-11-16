@@ -4,6 +4,9 @@ import { fechaHora, verTelefono } from "@/lib/wa";
 
 const LATIDO_MAX_MS = 3 * 60 * 1000;
 
+// Aparte del componente para que el render no llame a Date.now directamente.
+const msDesde = (iso: string) => Date.now() - new Date(iso.replace(" ", "T")).getTime();
+
 type Latido = { estado: string; linea: string; latido: string };
 
 /** Franja roja por cada número cuyo bot perdió la conexión con WhatsApp o dejó de dar señal (caído). */
@@ -11,7 +14,7 @@ async function AvisoConexion() {
   const r = await pb<List<Latido>>("collections/wa_latido/records?perPage=20&sort=linea").catch(() => null);
   const problemas = (r?.items ?? [])
     .map((l) => {
-      const caido = Date.now() - new Date(l.latido.replace(" ", "T")).getTime() > LATIDO_MAX_MS;
+      const caido = msDesde(l.latido) > LATIDO_MAX_MS;
       return { ...l, caido };
     })
     .filter((l) => l.caido || l.estado !== "conectado");
