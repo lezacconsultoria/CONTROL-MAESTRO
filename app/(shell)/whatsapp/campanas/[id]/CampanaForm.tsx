@@ -49,7 +49,10 @@ const boton = "rounded-md bg-surface-2 px-2.5 py-1 text-xs text-muted hover:text
 const EJEMPLO = { nombre: "Juan", empresa: "Distribuidora Norte" };
 const OTRA = "__otra__";
 
-export default function CampanaForm({ campana, contactos, etiquetas, lineas }: { campana: CampanaEditable; contactos: number; etiquetas: EtiquetaInfo[]; lineas: string[] }) {
+export default function CampanaForm({ campana, contactos, etiquetasPorLinea, lineas }: { campana: CampanaEditable; contactos: number; etiquetasPorLinea: Record<string, EtiquetaInfo[]>; lineas: string[] }) {
+  const [linea, setLinea] = useState(campana.linea);
+  // Solo se ofrecen las etiquetas del número elegido (o todas si es «Cualquiera»).
+  const etiquetas = etiquetasPorLinea[linea] ?? etiquetasPorLinea[""] ?? [];
   const [res, action, pending] = useActionState(guardarCampana, { error: null });
   const [etiqueta, setEtiqueta] = useState(campana.etiqueta);
   // Si la campaña ya tiene una etiqueta que todavía no existe en Contactos, se muestra como «Otra».
@@ -154,7 +157,13 @@ export default function CampanaForm({ campana, contactos, etiquetas, lineas }: {
         {lineas.length > 0 && (
           <label className="block text-sm md:max-w-sm">
             <span className="mb-1 block text-muted">Enviar desde</span>
-            <select name="linea" defaultValue={campana.linea} className={campo}>
+            <select name="linea" value={linea} onChange={(e) => {
+              const nueva = e.target.value;
+              setLinea(nueva);
+              // Si la etiqueta elegida no existe en ese número, se vacía para no dejar una selección que no se va a poder enviar.
+              const lista = etiquetasPorLinea[nueva] ?? etiquetasPorLinea[""] ?? [];
+              if (!otra && etiqueta && !lista.some((x) => x.nombre === normEtiqueta(etiqueta))) setEtiqueta("");
+            }} className={campo}>
               <option value="">Cualquiera: cada contacto, por el número donde tiene la etiqueta</option>
               {lineas.map((l) => <option key={l} value={l}>Solo {verTelefono(l)}</option>)}
             </select>
